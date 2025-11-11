@@ -28,3 +28,5 @@ docker-compose.override.yml
 .claude/
 PROJECT_CONTEXT.md
 COMMIT_SUMMARY.md
+AUDIT_REPORT.md
+validate.sh
