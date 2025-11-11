@@ -1,0 +1,10 @@
+{
+  "name": "Alfa Business Assistant",
+  "short_name": "Alfa Business",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ef3124",
+  "description": "AI Business Assistant",
+  "icons": []
+}

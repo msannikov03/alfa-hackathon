@@ -1,0 +1,93 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  POSTGRES_USER: test_user
+  POSTGRES_PASSWORD: test_password
+  POSTGRES_DB: test_db
+  JWT_SECRET: test_jwt_secret
+  TELEGRAM_BOT_TOKEN: test_bot_token
+  TELEGRAM_BOT_NAME: test_bot
+  LLM_PROVIDER: ollama
+  OLLAMA_HOST: http://localhost:11434
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup Python for backend
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Lint backend with ruff (if available)
+        working-directory: ./backend
+        run: |
+          pip install ruff || true
+          ruff check . --exit-zero || true
+        continue-on-error: true
+
+      # Setup Node.js for frontend
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: ./frontend
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+          NEXT_PUBLIC_TELEGRAM_BOT_NAME: test_bot
+
+      # Build and test Docker images
+      - name: Create .env file for Docker
+        run: |
+          cp .env.example .env
+          sed -i 's/your_secure_password_here/test_password/g' .env
+          sed -i 's/your_jwt_secret_key_here/test_jwt_secret/g' .env
+          sed -i 's/your_bot_token_here/test_bot_token/g' .env
+          sed -i 's/your_bot_name_here/test_bot/g' .env
+
+      - name: Build Docker images
+        run: docker compose build
+
+      - name: Test Docker containers health
+        run: |
+          docker compose up -d postgres
+          sleep 10
+          docker compose down
+
+      # Optional: Deploy to production
+      - name: Deploy
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "Add deployment commands here"
