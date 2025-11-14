@@ -34,6 +34,7 @@ jobs:
       - name: Install backend dependencies
         working-directory: ./backend
         run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1+cpu torchvision==0.20.1+cpu torchaudio==2.5.1+cpu
           pip install -r requirements.txt
           pip install pytest pytest-asyncio httpx
 
@@ -69,6 +70,14 @@ jobs:
           NEXT_PUBLIC_TELEGRAM_BOT_NAME: test_bot
 
       # Build and test Docker images
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          docker system prune -af
+
       - name: Create .env file for Docker
         run: |
           cp .env.example .env
