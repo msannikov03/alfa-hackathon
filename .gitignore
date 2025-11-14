@@ -16,6 +16,10 @@ out/
 .env.local
 *.env
 
+# ChromaDB Vector Store
+chroma_data/
+backend/chroma_data/
+
 # IDE
 .vscode/
 .idea/
@@ -27,6 +31,3 @@ docker-compose.override.yml
 # Claude
 .claude/
 PROJECT_CONTEXT.md
-COMMIT_SUMMARY.md
-AUDIT_REPORT.md
-validate.sh

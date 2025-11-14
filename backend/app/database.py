@@ -13,7 +13,14 @@ Base = declarative_base()
 async def init_db():
     """Initialize database and create all tables"""
     # Import all models here to ensure they are registered with SQLAlchemy
-    from app.models import User  # noqa: F401
+    from app.models import (  # noqa: F401
+        User,
+        Briefing,
+        AutonomousAction,
+        LearnedPattern,
+        Decision,
+        BusinessContext,
+    )
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

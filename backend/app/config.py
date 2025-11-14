@@ -12,11 +12,21 @@ class Settings(BaseSettings):
     
     # Telegram
     TELEGRAM_BOT_TOKEN: Optional[str] = None
-    
-    # LLM
-    LLM_PROVIDER: str = "ollama"
-    OLLAMA_HOST: str = "http://localhost:11434"
-    OPENROUTER_API_KEY: Optional[str] = None
+    TELEGRAM_WEBAPP_URL: str = "http://localhost:3000/tg-app"
+
+    # LLM - DeepSeek API
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
+    DEEPSEEK_MODEL: str = "deepseek-chat"
+
+    # Autonomous Features
+    ENABLE_AUTONOMOUS_ACTIONS: bool = True
+    MORNING_BRIEFING_TIME: str = "06:00"
+    DECISION_THRESHOLD_AMOUNT: int = 10000
+
+    # Memory
+    CHROMADB_PATH: str = "./chroma_data"
+    MAX_CONTEXT_TOKENS: int = 8000
     
     class Config:
         env_file = ".env"
