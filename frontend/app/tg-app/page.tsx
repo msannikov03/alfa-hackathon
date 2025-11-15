@@ -89,21 +89,21 @@ export default function TelegramApp() {
       const userId = tg?.initDataUnsafe.user?.id || 1;
 
       // Fetch recent actions
-      const actionsRes = await fetch(`http://localhost:8000/api/v1/actions/recent?user_id=${userId}&limit=10`);
+      const actionsRes = await fetch(`/api/v1/actions/recent?user_id=${userId}&limit=10`);
       if (actionsRes.ok) {
         const actionsData = await actionsRes.json();
         setActions(actionsData);
       }
 
       // Fetch pending approvals
-      const pendingRes = await fetch(`http://localhost:8000/api/v1/actions/pending?user_id=${userId}`);
+      const pendingRes = await fetch(`/api/v1/actions/pending?user_id=${userId}`);
       if (pendingRes.ok) {
         const pendingData = await pendingRes.json();
         setPendingActions(pendingData);
       }
 
       // Fetch metrics
-      const metricsRes = await fetch(`http://localhost:8000/api/v1/metrics/performance?user_id=${userId}`);
+      const metricsRes = await fetch(`/api/v1/metrics/performance?user_id=${userId}`);
       if (metricsRes.ok) {
         const metricsData = await metricsRes.json();
         setMetrics(metricsData);
@@ -117,7 +117,7 @@ export default function TelegramApp() {
 
   const handleApprove = async (actionId: number) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/actions/approve/${actionId}`, {
+      const res = await fetch(`/api/v1/actions/approve/${actionId}`, {
         method: "POST",
       });
 
@@ -137,7 +137,7 @@ export default function TelegramApp() {
 
   const handleDecline = async (actionId: number) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/actions/decline/${actionId}`, {
+      const res = await fetch(`/api/v1/actions/decline/${actionId}`, {
         method: "POST",
       });
 

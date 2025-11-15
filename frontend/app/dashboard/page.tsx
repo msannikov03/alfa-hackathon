@@ -70,7 +70,7 @@ export default function DashboardPage() {
       const storedUserId = localStorage.getItem("user_id");
       if (!storedUserId) return;
 
-      const socket = new WebSocket(`ws://localhost:8000/ws?user_id=${storedUserId}`);
+      const socket = new WebSocket(`wss://alfa.businesslion.me/ws?user_id=${storedUserId}`);
 
       socket.onopen = () => {
         console.log("WebSocket connected");
@@ -132,7 +132,7 @@ export default function DashboardPage() {
 
       // Fetch recent actions
       const actionsRes = await fetch(
-        `http://localhost:8000/api/v1/actions/recent?user_id=${storedUserId}&limit=20`,
+        `/api/v1/actions/recent?user_id=${storedUserId}&limit=20`,
         { headers }
       );
       if (actionsRes.ok) {
@@ -142,7 +142,7 @@ export default function DashboardPage() {
 
       // Fetch metrics
       const metricsRes = await fetch(
-        `http://localhost:8000/api/v1/metrics/performance?user_id=${storedUserId}`,
+        `/api/v1/metrics/performance?user_id=${storedUserId}`,
         { headers }
       );
       if (metricsRes.ok) {
@@ -156,7 +156,7 @@ export default function DashboardPage() {
 
   const handleApprove = async (actionId: number) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/actions/approve/${actionId}`, {
+      const res = await fetch(`/api/v1/actions/approve/${actionId}`, {
         method: "POST",
       });
 
@@ -170,7 +170,7 @@ export default function DashboardPage() {
 
   const handleDecline = async (actionId: number) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/actions/decline/${actionId}`, {
+      const res = await fetch(`/api/v1/actions/decline/${actionId}`, {
         method: "POST",
       });
 
