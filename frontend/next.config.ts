@@ -21,6 +21,19 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // API Proxy for production - routes /api/* to backend container
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://backend:8000/api/:path*",
+      },
+      {
+        source: "/ws",
+        destination: "http://backend:8000/ws",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

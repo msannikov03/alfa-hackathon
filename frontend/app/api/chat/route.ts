@@ -12,10 +12,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Implement actual chat logic with AI backend
-    // For now, return a placeholder response
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    
+    // Use Docker service name for server-side API calls
+    // This runs on the Next.js server, not in the browser
+    const apiUrl = process.env.API_URL || "http://backend:8000";
+
     const response = await fetch(`${apiUrl}/api/chat`, {
       method: "POST",
       headers: {
