@@ -47,7 +47,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      target: development
+      target: production
     container_name: alfa_frontend
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
