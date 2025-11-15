@@ -70,7 +70,9 @@ export default function DashboardPage() {
       const storedUserId = localStorage.getItem("user_id");
       if (!storedUserId) return;
 
-      const socket = new WebSocket(`wss://alfa.businesslion.me/ws?user_id=${storedUserId}`);
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsHost = window.location.host;
+      const socket = new WebSocket(`${wsProtocol}//${wsHost}/ws?user_id=${storedUserId}`);
 
       socket.onopen = () => {
         console.log("WebSocket connected");
