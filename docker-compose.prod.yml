@@ -8,8 +8,7 @@ services:
     build:
       context: ./frontend
       target: production
-    command: sh -c "npm run build && npm run start"
     volumes: []  # Override to remove development volume mounts
-    environment:
-      - NODE_ENV=production
     restart: unless-stopped
+    # No command needed - Dockerfile already has CMD ["node", "server.js"]
+    # Build happens during 'docker compose build', not at runtime
