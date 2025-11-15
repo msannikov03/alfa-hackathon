@@ -11,14 +11,14 @@ class LLMService:
     """Enhanced LLM Service with business context and decision-making"""
 
     def __init__(self):
-        # Initialize DeepSeek client
-        if settings.DEEPSEEK_API_KEY:
+        # Initialize LLM7.io client (compatible with OpenAI SDK)
+        if settings.LLM7_API_KEY:
             self.client = AsyncOpenAI(
-                api_key=settings.DEEPSEEK_API_KEY,
-                base_url=settings.DEEPSEEK_BASE_URL,
+                api_key=settings.LLM7_API_KEY,
+                base_url=settings.LLM7_BASE_URL,
             )
         else:
-            logger.warning("DEEPSEEK_API_KEY not set - LLM features will not work")
+            logger.warning("LLM7_API_KEY not set - LLM features will not work")
             self.client = None
 
     async def process_with_context(
@@ -116,13 +116,13 @@ Decision Thresholds:
 - Always escalate: Over ₽{escalate.get('min_amount', 50000):,}"""
 
     async def _call_llm(self, messages: list) -> str:
-        """Call DeepSeek API"""
+        """Call LLM7.io API with configured model"""
         try:
             if not self.client:
-                return "LLM service is not configured. Please set DEEPSEEK_API_KEY in your .env file."
+                return "LLM service is not configured. Please set LLM7_API_KEY in your .env file."
 
             response = await self.client.chat.completions.create(
-                model=settings.DEEPSEEK_MODEL,
+                model=settings.LLM7_MODEL,
                 messages=messages,
                 max_tokens=1000,
                 temperature=0.7,
@@ -130,8 +130,8 @@ Decision Thresholds:
             return response.choices[0].message.content
 
         except Exception as e:
-            logger.error(f"Error calling DeepSeek API: {e}")
-            return f"Error calling LLM: {str(e)}. Please check your DEEPSEEK_API_KEY."
+            logger.error(f"Error calling LLM7.io API: {e}")
+            return f"Error calling LLM: {str(e)}. Please check your LLM7_API_KEY."
 
     def _check_approval_needed(self, response: str, business_context: Optional[Dict[str, Any]] = None) -> bool:
         """Determine if the action requires user approval"""

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON
+from sqlalchemy import Column, Integer, String, DateTime, JSON, Boolean
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -11,6 +11,10 @@ class User(Base):
     username = Column(String, nullable=True)
     email = Column(String, unique=True, index=True, nullable=True)
     full_name = Column(String, nullable=True)
+
+    # Authentication
+    hashed_password = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
 
     # Business information
     business_name = Column(String, nullable=True)

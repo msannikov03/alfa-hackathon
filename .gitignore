@@ -31,3 +31,4 @@ docker-compose.override.yml
 # Claude
 .claude/
 PROJECT_CONTEXT.md
+DEPLOYMENT.md

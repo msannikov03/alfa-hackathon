@@ -14,10 +14,10 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: Optional[str] = None
     TELEGRAM_WEBAPP_URL: str = "http://localhost:3000/tg-app"
 
-    # LLM - DeepSeek API
-    DEEPSEEK_API_KEY: str = ""
-    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
-    DEEPSEEK_MODEL: str = "deepseek-chat"
+    # LLM - LLM7.io API (Free LLM gateway)
+    LLM7_API_KEY: str = ""  # Get free token from https://token.llm7.io
+    LLM7_BASE_URL: str = "https://api.llm7.io/v1"
+    LLM7_MODEL: str = "gpt-4o-mini"  # Default model
 
     # Autonomous Features
     ENABLE_AUTONOMOUS_ACTIONS: bool = True

@@ -33,9 +33,25 @@ export default function DashboardPage() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const [notifications, setNotifications] = useState<WebSocketMessage[]>([]);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [username, setUsername] = useState<string>("");
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    // Check authentication
+    const token = localStorage.getItem("token");
+    const storedUserId = localStorage.getItem("user_id");
+    const storedUsername = localStorage.getItem("username");
+
+    if (!token || !storedUserId) {
+      // Redirect to login if not authenticated
+      window.location.href = "/login";
+      return;
+    }
+
+    setUserId(parseInt(storedUserId));
+    setUsername(storedUsername || "User");
+
     // Fetch initial data
     fetchData();
 
@@ -51,9 +67,10 @@ export default function DashboardPage() {
 
   const connectWebSocket = () => {
     try {
-      // In production, get user_id from auth
-      const userId = 1;
-      const socket = new WebSocket(`ws://localhost:8000/ws?user_id=${userId}`);
+      const storedUserId = localStorage.getItem("user_id");
+      if (!storedUserId) return;
+
+      const socket = new WebSocket(`ws://localhost:8000/ws?user_id=${storedUserId}`);
 
       socket.onopen = () => {
         console.log("WebSocket connected");
@@ -104,17 +121,30 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      const userId = 1; // Get from auth in production
+      const storedUserId = localStorage.getItem("user_id");
+      const token = localStorage.getItem("token");
+
+      if (!storedUserId || !token) return;
+
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
 
       // Fetch recent actions
-      const actionsRes = await fetch(`http://localhost:8000/api/v1/actions/recent?user_id=${userId}&limit=20`);
+      const actionsRes = await fetch(
+        `http://localhost:8000/api/v1/actions/recent?user_id=${storedUserId}&limit=20`,
+        { headers }
+      );
       if (actionsRes.ok) {
         const actionsData = await actionsRes.json();
         setActions(actionsData);
       }
 
       // Fetch metrics
-      const metricsRes = await fetch(`http://localhost:8000/api/v1/metrics/performance?user_id=${userId}`);
+      const metricsRes = await fetch(
+        `http://localhost:8000/api/v1/metrics/performance?user_id=${storedUserId}`,
+        { headers }
+      );
       if (metricsRes.ok) {
         const metricsData = await metricsRes.json();
         setMetrics(metricsData);
@@ -160,13 +190,26 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-4xl font-bold text-gray-900">Business Dashboard</h1>
-              <p className="text-gray-600 mt-2">Real-time AI Business Assistant</p>
+              <p className="text-gray-600 mt-2">
+                Welcome, {username} | Real-time AI Business Assistant
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`}></div>
-              <span className="text-sm text-gray-600">
-                {connected ? "Live" : "Connecting..."}
-              </span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`}></div>
+                <span className="text-sm text-gray-600">
+                  {connected ? "Live" : "Connecting..."}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.href = "/login";
+                }}
+                className="text-sm px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>

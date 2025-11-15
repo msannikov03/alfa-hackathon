@@ -1,0 +1,90 @@
+name: Deploy to Raspberry Pi
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Raspberry Pi
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PI_HOST }}
+          username: ${{ secrets.PI_USER }}
+          key: ${{ secrets.PI_SSH_KEY }}
+          script: |
+            set -e
+            echo "🚀 Starting deployment to Raspberry Pi..."
+
+            # Navigate to project directory
+            cd ~/alfa-hackathon || { echo "Project directory not found!"; exit 1; }
+
+            # Pull latest changes
+            echo "📥 Pulling latest code from GitHub..."
+            git fetch origin
+            git reset --hard origin/main
+
+            # Stop containers
+            echo "🛑 Stopping existing containers..."
+            docker compose down || true
+
+            # Clean up old images to free space
+            echo "🧹 Cleaning up old Docker images..."
+            docker image prune -f || true
+
+            # Build new images
+            echo "🔨 Building Docker images..."
+            docker compose build --no-cache
+
+            # Start services
+            echo "▶️  Starting services..."
+            docker compose up -d
+
+            # Wait for services to be healthy
+            echo "⏳ Waiting for services to start..."
+            sleep 15
+
+            # Check service health
+            echo "🏥 Checking service health..."
+            docker compose ps
+
+            # Check backend health endpoint
+            echo "🔍 Testing backend health..."
+            for i in {1..10}; do
+              if curl -f http://localhost:8000/health > /dev/null 2>&1; then
+                echo "✅ Backend is healthy!"
+                break
+              fi
+              echo "Waiting for backend... ($i/10)"
+              sleep 3
+            done
+
+            # Show recent logs
+            echo "📋 Recent backend logs:"
+            docker compose logs --tail=20 backend
+
+            echo "✅ Deployment completed successfully!"
+            echo "🌐 App should be available at your Cloudflare domain"
+
+      - name: Deployment notification
+        if: success()
+        run: |
+          echo "✅ Successfully deployed to Raspberry Pi!"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+
+      - name: Deployment failed
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Check the logs above for details"
+          exit 1

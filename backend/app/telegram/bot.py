@@ -15,20 +15,77 @@ from app.database import AsyncSessionLocal
 from app.models import User, AutonomousAction, BusinessContext
 from sqlalchemy import select
 from datetime import datetime
+from passlib.context import CryptContext
 import logging
 
 logger = logging.getLogger(__name__)
 
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 # Conversation states for business setup
 BUSINESS_NAME, BUSINESS_TYPE, LOCATION = range(3)
 
+# Conversation states for password setup
+SET_PASSWORD = range(1)
+
+# Conversation states for mode selection
+SELECT_MODE = range(1)
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start command handler"""
-    webapp_url = settings.TELEGRAM_WEBAPP_URL
+    """Start command handler with mode selection"""
+    # Check if user already has a mode set
+    user_mode = context.user_data.get('mode')
 
-    keyboard = [
-        [InlineKeyboardButton("📊 Open Dashboard", web_app=WebAppInfo(url=webapp_url))],
+    if not user_mode:
+        # First time - ask user to select mode
+        keyboard = [
+            [InlineKeyboardButton("🎭 Demo Mode - Try with sample data", callback_data="mode_demo")],
+            [InlineKeyboardButton("🚀 Live Mode - Create your account", callback_data="mode_live")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        welcome_message = """👋 Welcome to Alfa Business Assistant!
+
+I'm your autonomous AI business assistant that:
+• Works independently while you sleep
+• Makes decisions within your thresholds
+• Sends morning briefings at 6:00 AM
+• Only asks approval for important decisions
+
+**Please choose your mode:**
+
+🎭 **Demo Mode** - Explore with pre-loaded sample business data
+   • Perfect for testing and seeing what I can do
+   • View a coffee shop business with real scenarios
+   • No setup required!
+
+🚀 **Live Mode** - Set up your own business account
+   • Configure your actual business
+   • Start getting real insights
+   • Customize everything
+
+Choose a mode to get started! 💪"""
+
+        await update.message.reply_text(welcome_message, reply_markup=reply_markup)
+    else:
+        # User already has mode - show main menu
+        await show_main_menu(update, context, user_mode)
+
+
+async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str):
+    """Show main menu based on user's mode"""
+    # Build keyboard based on webapp availability
+    keyboard = []
+
+    # Only add webapp button if URL is configured and not localhost (i.e., deployed)
+    webapp_url = settings.TELEGRAM_WEBAPP_URL
+    if webapp_url and "localhost" not in webapp_url:
+        keyboard.append([InlineKeyboardButton("📊 Open Dashboard", web_app=WebAppInfo(url=webapp_url))])
+
+    # Add main action buttons
+    keyboard.extend([
         [
             InlineKeyboardButton("📈 Today's Stats", callback_data="stats"),
             InlineKeyboardButton("✅ Approvals", callback_data="approvals"),
@@ -37,43 +94,144 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("📋 Briefing", callback_data="briefing"),
             InlineKeyboardButton("❓ Help", callback_data="help"),
         ],
+    ])
+
+    # Add mode switch option
+    if mode == "demo":
+        keyboard.append([InlineKeyboardButton("🚀 Switch to Live Mode", callback_data="mode_live")])
+    else:
+        keyboard.append([InlineKeyboardButton("🎭 View Demo Mode", callback_data="mode_demo")])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    mode_text = "🎭 Demo Mode" if mode == "demo" else "🚀 Live Mode"
+
+    welcome_message = f"""Welcome to Alfa Business Assistant! {mode_text}
+
+I'm your autonomous AI business assistant.
+
+**What I do:**
+• Work independently while you sleep
+• Make decisions within thresholds
+• Send morning briefings at 6:00 AM
+• Request approval only for important decisions
+
+**Commands:**
+/setup - Configure business profile
+/briefing - Get today's briefing
+/stats - Today's statistics
+/approve - Pending approvals
+/help - Show help
+/changemode - Switch between Demo/Live mode
+
+Or just message me, and I'll help! 💪"""
+
+    # Use appropriate method based on whether this is a callback or message
+    if update.callback_query:
+        await update.callback_query.edit_message_text(welcome_message, reply_markup=reply_markup)
+    else:
+        await update.message.reply_text(welcome_message, reply_markup=reply_markup)
+
+
+async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle mode selection (demo/live)"""
+    query = update.callback_query
+    await query.answer()
+
+    mode = query.data.replace("mode_", "")
+    context.user_data['mode'] = mode
+
+    if mode == "demo":
+        # Link user to demo account
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(User).where(User.username == "demo_admin")
+            )
+            demo_user = result.scalar_one_or_none()
+
+            if demo_user:
+                context.user_data['user_id'] = demo_user.id
+                await query.edit_message_text(
+                    f"""✅ Demo Mode Activated!
+
+You're now exploring a sample coffee shop business in Moscow.
+
+This demo includes:
+• 📊 Real business metrics and KPIs
+• 🤖 Sample autonomous actions
+• 📋 Pre-generated briefings
+• ✅ Pending approval scenarios
+
+Perfect for seeing what the assistant can do!
+
+Let me show you the main menu..."""
+                )
+                await show_main_menu(update, context, mode)
+            else:
+                await query.edit_message_text(
+                    "❌ Demo data not found. Please run the seed script first:\n\n"
+                    "`docker exec alfa_backend python seed_demo_data.py`"
+                )
+    else:  # live mode
+        # Create or get user's own account
+        telegram_user = update.effective_user
+        db_user = await _get_or_create_user(telegram_user)
+        context.user_data['user_id'] = db_user.id
+
+        # Check if user has business context
+        business_context = await _get_business_context(db_user.id)
+
+        if not business_context:
+            await query.edit_message_text(
+                """✅ Live Mode Activated!
+
+Let's set up your business profile to get started.
+
+Use /setup to configure your business, or use the menu below."""
+            )
+        else:
+            await query.edit_message_text(
+                f"""✅ Live Mode Activated!
+
+Welcome back to your business: {business_context.get('business_name', 'Your Business')}!
+
+Let me show you the main menu..."""
+            )
+
+        await show_main_menu(update, context, mode)
+
+
+async def changemode_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Allow users to change between demo and live mode"""
+    current_mode = context.user_data.get('mode', 'none')
+
+    keyboard = [
+        [InlineKeyboardButton("🎭 Demo Mode", callback_data="mode_demo")],
+        [InlineKeyboardButton("🚀 Live Mode", callback_data="mode_live")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    welcome_message = """Добро пожаловать в Alfa Business Assistant! 🚀
-
-Я ваш автономный AI-помощник для бизнеса.
-
-Что я делаю:
-• Работаю самостоятельно, пока вы спите
-• Принимаю решения в рамках порогов
-• Отправляю утренние брифинги в 6:00
-• Запрашиваю одобрение только для важных решений
-
-Команды:
-/setup - Настроить бизнес-профиль
-/briefing - Получить сегодняшний брифинг
-/stats - Статистика за сегодня
-/approve - Pending approvals
-/help - Помощь
-
-Или просто напишите мне, и я помогу! 💪"""
-
-    # Create user if not exists
-    await _get_or_create_user(update.effective_user)
-
-    await update.message.reply_text(welcome_message, reply_markup=reply_markup)
+    await update.message.reply_text(
+        f"Current mode: **{current_mode.title() if current_mode != 'none' else 'Not Set'}**\n\n"
+        "Choose a mode:",
+        reply_markup=reply_markup
+    )
 
 
 async def briefing(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Get today's briefing"""
-    user = update.effective_user
-    db_user = await _get_or_create_user(user)
+    # Get user ID from context (demo mode) or create user (live mode)
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
 
-    await update.message.reply_text("Генерирую брифинг... ⏳")
+    message = update.callback_query.message if update.callback_query else update.message
+    await message.reply_text("Generating briefing... ⏳")
 
     try:
-        briefing_data = await briefing_agent.generate_daily_briefing(db_user.id)
+        briefing_data = await briefing_agent.generate_daily_briefing(user_id)
 
         response = f"""📋 Брифинг на {datetime.now().strftime('%d.%m.%Y')}
 
@@ -95,8 +253,12 @@ async def briefing(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show today's statistics"""
-    user = update.effective_user
-    db_user = await _get_or_create_user(user)
+    # Get user ID from context (demo mode) or create user (live mode)
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
 
     try:
         async with AsyncSessionLocal() as session:
@@ -104,7 +266,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             today = datetime.now().date()
             result = await session.execute(
                 select(AutonomousAction)
-                .where(AutonomousAction.user_id == db_user.id)
+                .where(AutonomousAction.user_id == user_id)
                 .where(AutonomousAction.executed_at >= today)
             )
             actions = result.scalars().all()
@@ -138,14 +300,18 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def approvals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show pending approvals"""
-    user = update.effective_user
-    db_user = await _get_or_create_user(user)
+    # Get user ID from context (demo mode) or create user (live mode)
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
 
     try:
         async with AsyncSessionLocal() as session:
             result = await session.execute(
                 select(AutonomousAction)
-                .where(AutonomousAction.user_id == db_user.id)
+                .where(AutonomousAction.user_id == user_id)
                 .where(AutonomousAction.required_approval == True)
                 .where(AutonomousAction.was_approved == None)
                 .order_by(AutonomousAction.executed_at.desc())
@@ -313,6 +479,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Основные команды:
 /start - Начать работу
 /setup - Настроить бизнес-профиль
+/setpassword - Установить пароль для доступа к дашборду
 /briefing - Получить утренний брифинг
 /stats - Статистика за сегодня
 /approve - Проверить одобрения
@@ -333,6 +500,75 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Просто напишите мне, и я помогу! 💪"""
 
     await update.message.reply_text(help_text)
+
+
+async def setpassword_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start password setup wizard"""
+    await update.message.reply_text(
+        "🔐 Установка пароля для доступа к дашборду\n\n"
+        "Введите желаемый пароль (минимум 6 символов):\n\n"
+        "Отправьте /cancel чтобы отменить."
+    )
+    return SET_PASSWORD
+
+
+async def setpassword_save(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Save the password"""
+    password = update.message.text
+
+    # Delete the message with password for security
+    try:
+        await update.message.delete()
+    except:
+        pass
+
+    if len(password) < 6:
+        await update.message.reply_text(
+            "❌ Пароль должен быть минимум 6 символов. Попробуйте еще раз."
+        )
+        return SET_PASSWORD
+
+    telegram_user = update.effective_user
+    db_user = await _get_or_create_user(telegram_user)
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(User).where(User.id == db_user.id)
+            )
+            user = result.scalar_one_or_none()
+
+            if user:
+                # Set username if not set
+                if not user.username:
+                    user.username = telegram_user.username or f"user_{telegram_user.id}"
+
+                # Hash and save password
+                user.hashed_password = pwd_context.hash(password)
+                await session.commit()
+
+                await update.message.reply_text(
+                    f"✅ Пароль установлен!\n\n"
+                    f"👤 Ваш логин: {user.username}\n\n"
+                    f"Теперь вы можете войти в дашборд на http://localhost:3000/dashboard\n"
+                    f"используя этот логин и установленный пароль."
+                )
+            else:
+                await update.message.reply_text("❌ Ошибка при сохранении пароля.")
+
+    except Exception as e:
+        logger.error(f"Error setting password: {e}")
+        await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
+
+    return ConversationHandler.END
+
+
+async def setpassword_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel password setup"""
+    await update.message.reply_text(
+        "Установка пароля отменена. Используйте /setpassword чтобы начать заново."
+    )
+    return ConversationHandler.END
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -383,7 +619,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     callback_data = query.data
 
-    if callback_data == "help":
+    # Handle mode selection
+    if callback_data.startswith("mode_"):
+        await handle_mode_selection(update, context)
+    elif callback_data == "help":
         await help_command(update, context)
     elif callback_data == "stats":
         await stats(update, context)
@@ -401,7 +640,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         action_id = callback_data.split("_")[1]
         await decline_action(update, context, int(action_id))
     else:
-        await query.edit_message_text("Функция в разработке...")
+        await query.edit_message_text("Function under development...")
 
 
 async def approve_action(update: Update, context: ContextTypes.DEFAULT_TYPE, action_id: int):
@@ -450,14 +689,18 @@ async def decline_action(update: Update, context: ContextTypes.DEFAULT_TYPE, act
 
 async def approve_all_actions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Approve all pending actions"""
-    user = update.effective_user
-    db_user = await _get_or_create_user(user)
+    # Get user ID from context (demo mode) or create user (live mode)
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
 
     try:
         async with AsyncSessionLocal() as session:
             result = await session.execute(
                 select(AutonomousAction)
-                .where(AutonomousAction.user_id == db_user.id)
+                .where(AutonomousAction.user_id == user_id)
                 .where(AutonomousAction.required_approval == True)
                 .where(AutonomousAction.was_approved == None)
             )
@@ -540,12 +783,23 @@ async def setup_telegram_bot():
     )
     application.add_handler(setup_conv_handler)
 
+    # Add password setup conversation handler
+    password_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("setpassword", setpassword_start)],
+        states={
+            SET_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, setpassword_save)],
+        },
+        fallbacks=[CommandHandler("cancel", setpassword_cancel)],
+    )
+    application.add_handler(password_conv_handler)
+
     # Add command handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("briefing", briefing))
     application.add_handler(CommandHandler("stats", stats))
     application.add_handler(CommandHandler("approve", approvals))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("changemode", changemode_command))
 
     # Add callback query handler for buttons (must be after setup handler)
     application.add_handler(CallbackQueryHandler(button_callback))

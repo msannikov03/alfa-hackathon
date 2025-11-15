@@ -8,6 +8,7 @@ from apscheduler.triggers.cron import CronTrigger
 from app.config import settings
 from app.database import init_db
 from app.api.routes import router
+from app.api.auth import router as auth_router
 from app.telegram.bot import setup_telegram_bot
 from app.agents.briefing_agent import briefing_agent
 
@@ -72,6 +73,7 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 
 # WebSocket endpoint
 from fastapi import WebSocket, WebSocketDisconnect
