@@ -143,7 +143,7 @@ class LegalService:
             # Deep analysis with LLM
             prompt = f"""
             Business Context: {context.structured_data}
-            Legal Article: "{article['title]}"
+            Legal Article: "{article['title']}"
             Summary: "{article.get('summary', '')}"
 
             Analyze if this article is relevant to the business.
