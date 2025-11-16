@@ -151,10 +151,10 @@ export default function CompetitorsPage() {
                                     <p className="text-sm text-gray-400 break-all">{competitor.website_url || 'No URL'}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <NeonButton size="sm" onClick={() => scanCompetitorMutation.mutate(competitor.id)} isLoading={scanCompetitorMutation.isPending && scanCompetitorMutation.variables === competitor.id}>
+                                    <NeonButton onClick={() => scanCompetitorMutation.mutate(competitor.id)} isLoading={scanCompetitorMutation.isPending && scanCompetitorMutation.variables === competitor.id} className="px-3 py-1.5 text-sm">
                                         <Zap size={18} /> Сканировать
                                     </NeonButton>
-                                    <NeonButton size="sm" onClick={() => deleteCompetitorMutation.mutate(competitor.id)} className="bg-red-500/10 border-red-500/50 hover:bg-red-500/20">
+                                    <NeonButton onClick={() => deleteCompetitorMutation.mutate(competitor.id)} className="px-3 py-1.5 text-sm bg-red-500/10 border-red-500/50 hover:bg-red-500/20">
                                         <Trash2 size={18} /> Удалить
                                     </NeonButton>
                                 </div>
