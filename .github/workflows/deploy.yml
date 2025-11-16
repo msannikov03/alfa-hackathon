@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
   deploy:
@@ -21,6 +21,9 @@ jobs:
           host: ${{ secrets.PI_HOST }}
           username: ${{ secrets.PI_USER }}
           key: ${{ secrets.PI_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 30m
           script: |
             set -e
             echo "🚀 Starting deployment to Raspberry Pi..."
