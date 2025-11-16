@@ -8,5 +8,6 @@ services:
     build:
       context: ./frontend
       target: production
+    command: npm start
     volumes: []
     restart: unless-stopped
