@@ -1,16 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
+from typing import Dict, List, Any
+from uuid import UUID
+from datetime import datetime
 import csv
 import io
-from typing import Dict, List
+import json
+import logging
 
 from app.database import get_db
 from app.services.finance_service import finance_service
-from app.schemas import CashFlowPrediction
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 TEMP_USER_ID = 1
+
+# Pydantic models
+class CashFlowPrediction(BaseModel):
+    id: UUID
+    user_id: int
+    predicted_data: List[Dict[str, Any]]
+    insights: Dict[str, Any]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 @router.post("/upload-csv")
 async def get_csv_mapping(

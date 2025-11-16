@@ -1,13 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import delete
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 import json
 import logging
 
 from app.models import Competitor, CompetitorAction
-from app.schemas import CompetitorCreate
 from app.services.llm_service import llm_service
 from app.services.scraping_service import scraping_service
 
@@ -26,8 +25,8 @@ class CompetitorService:
         )
         return result.scalars().all()
 
-    async def create(self, db: AsyncSession, user_id: int, competitor_in: CompetitorCreate) -> Competitor:
-        new_competitor = Competitor(**competitor_in.dict(), user_id=user_id)
+    async def create(self, db: AsyncSession, user_id: int, competitor_in: Dict[str, Any]) -> Competitor:
+        new_competitor = Competitor(**competitor_in, user_id=user_id)
         db.add(new_competitor)
         await db.commit()
         await db.refresh(new_competitor)

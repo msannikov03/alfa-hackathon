@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+from uuid import UUID
+from datetime import datetime
 
 from app.database import get_db
-from app.schemas import BusinessContext, LegalUpdate, BusinessContextCreate
 from app.services.legal_service import legal_service
 
 router = APIRouter()
@@ -11,6 +13,36 @@ router = APIRouter()
 # Since auth is not our problem, we need a temporary way to identify a user.
 # I will use a hardcoded user_id for now.
 TEMP_USER_ID = 1
+
+# Pydantic models
+class BusinessContextCreate(BaseModel):
+    raw_description: str
+
+class BusinessContext(BaseModel):
+    id: UUID
+    user_id: int
+    raw_description: str
+    structured_data: Optional[Dict[str, Any]] = None
+    embedding: Optional[List[str]] = None
+
+    class Config:
+        from_attributes = True
+
+class LegalUpdate(BaseModel):
+    id: UUID
+    user_id: int
+    title: str
+    url: str
+    source: str
+    summary: str
+    impact_level: str
+    category: str
+    full_text_hash: str
+    detected_at: datetime
+    details: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
 
 @router.post("/business-context", response_model=BusinessContext)
 async def update_business_context(

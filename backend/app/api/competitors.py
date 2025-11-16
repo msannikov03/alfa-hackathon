@@ -1,20 +1,48 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional, Dict, Any
 from uuid import UUID
+from datetime import datetime
+from pydantic import BaseModel
 
 from app.database import get_db
-# I will need a user model, but for now, I will use a placeholder
-# from app.models import User
-# from app.api.auth import get_current_user
-from app.schemas import Competitor, CompetitorCreate, CompetitorAction
 from app.services.competitor_service import competitor_service
 
 router = APIRouter()
 
 # Since auth is not our problem, we need a temporary way to identify a user.
 # I will use a hardcoded user_id for now.
-TEMP_USER_ID = 1 
+TEMP_USER_ID = 1
+
+# Pydantic models
+class CompetitorCreate(BaseModel):
+    name: str
+    website_url: Optional[str] = None
+    vk_group_id: Optional[str] = None
+    telegram_channel: Optional[str] = None
+
+class Competitor(BaseModel):
+    id: UUID
+    user_id: int
+    name: str
+    website_url: Optional[str] = None
+    vk_group_id: Optional[str] = None
+    telegram_channel: Optional[str] = None
+    last_scanned: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class CompetitorAction(BaseModel):
+    id: UUID
+    competitor_id: UUID
+    action_type: str
+    details: Dict[str, Any]
+    detected_at: datetime
+
+    class Config:
+        from_attributes = True 
 
 @router.post("/", response_model=Competitor)
 async def create_competitor(
@@ -22,7 +50,7 @@ async def create_competitor(
     db: AsyncSession = Depends(get_db),
 ):
     """Add a new competitor."""
-    return await competitor_service.create(db=db, user_id=TEMP_USER_ID, competitor_in=competitor_in)
+    return await competitor_service.create(db=db, user_id=TEMP_USER_ID, competitor_in=competitor_in.dict())
 
 @router.get("/", response_model=List[Competitor])
 async def list_competitors(
