@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -15,16 +15,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PI_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Force IPv4 and disable strict host key checking for first connection
+          cat >> ~/.ssh/config << EOF
+          Host pi-deploy
+            HostName ${{ secrets.PI_HOST }}
+            User ${{ secrets.PI_USER }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            AddressFamily inet
+            Port 22
+          EOF
+
       - name: Deploy to Raspberry Pi
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.PI_HOST }}
-          username: ${{ secrets.PI_USER }}
-          key: ${{ secrets.PI_SSH_KEY }}
-          port: 22
-          timeout: 60s
-          command_timeout: 30m
-          script: |
+        run: |
+          ssh pi-deploy << 'ENDSSH'
             set -e
             echo "🚀 Starting deployment to Raspberry Pi..."
 
@@ -77,6 +87,7 @@ jobs:
 
             echo "✅ Deployment completed successfully!"
             echo "🌐 App should be available at your Cloudflare domain"
+          ENDSSH
 
       - name: Deployment notification
         if: success()
