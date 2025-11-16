@@ -11,19 +11,25 @@ AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=F
 Base = declarative_base()
 
 async def init_db():
-    """Initialize database and create all tables"""
-    # Import all models here to ensure they are registered with SQLAlchemy
-    from app.models import (  # noqa: F401
-        User,
-        Briefing,
-        AutonomousAction,
-        LearnedPattern,
-        Decision,
-        BusinessContext,
-    )
-
     async with engine.begin() as conn:
+        # await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+    
+    # Seed initial data if needed
+    async with AsyncSession(engine) as session:
+        # Check if a default user exists
+        result = await session.execute(select(User).where(User.email == settings.SUPERUSER_EMAIL))
+        if not result.scalar_one_or_none():
+            logger.info("Creating superuser")
+            user = User(
+                email=settings.SUPERUSER_EMAIL,
+                hashed_password=get_password_hash(settings.SUPERUSER_PASSWORD),
+                is_superuser=True,
+                telegram_id=settings.SUPERUSER_TELEGRAM_ID
+            )
+            session.add(user)
+            await session.commit()
+            logger.info("Superuser created")
 
 async def get_db():
     """Dependency for getting database session"""

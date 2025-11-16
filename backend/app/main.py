@@ -8,10 +8,16 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.config import settings
 from app.database import init_db
-from app.api.routes import router
+from app.api.routes import router as general_router
 from app.api.auth import router as auth_router
+from app.api.competitors import router as competitors_router
+from app.api.legal import router as legal_router
+from app.api.finance import router as finance_router
+from app.api.trends import router as trends_router
 from app.telegram.bot import setup_telegram_bot
 from app.agents.briefing_agent import briefing_agent
+from app.services.legal_service import legal_service
+from app.database import AsyncSession, engine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,8 +52,20 @@ async def lifespan(app: FastAPI):
             name="Generate morning briefings",
         )
 
+        # Schedule daily legal scan
+        async def run_daily_scan():
+            async with AsyncSession(engine) as session:
+                await legal_service.daily_scan_and_process(session)
+
+        scheduler.add_job(
+            run_daily_scan,
+            CronTrigger(hour=5, minute=0), # Run every day at 5 AM
+            id="daily_legal_scan",
+            name="Scan for new legal updates daily",
+        )
+
         scheduler.start()
-        logger.info(f"Scheduler started - Morning briefings at {settings.MORNING_BRIEFING_TIME}")
+        logger.info(f"Scheduler started - Morning briefings at {settings.MORNING_BRIEFING_TIME}, Daily legal scan at 5:00")
 
     yield
 
@@ -79,8 +97,13 @@ app.add_middleware(
 )
 
 # Include API routes
-app.include_router(router, prefix="/api")
-app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(general_router, prefix="/api/v1", tags=["general"])
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(competitors_router, prefix="/api/v1/competitors", tags=["competitors"])
+app.include_router(legal_router, prefix="/api/v1/legal", tags=["legal"])
+app.include_router(finance_router, prefix="/api/v1/finance", tags=["finance"])
+app.include_router(trends_router, prefix="/api/v1/trends", tags=["trends"])
+
 
 # WebSocket endpoint
 from fastapi import WebSocket, WebSocketDisconnect
