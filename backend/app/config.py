@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: Optional[str] = None
     TELEGRAM_WEBAPP_URL: str = "http://localhost:3000/tg-app"
 
+    # Superuser
+    SUPERUSER_EMAIL: str = "admin@example.com"
+    SUPERUSER_PASSWORD: str = "admin123"
+    SUPERUSER_TELEGRAM_ID: Optional[int] = None
+
     # LLM - LLM7.io API (Free LLM gateway)
     LLM7_API_KEY: str = ""  # Get free token from https://token.llm7.io
     LLM7_BASE_URL: str = "https://api.llm7.io/v1"
