@@ -15,6 +15,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug DNS Resolution
+        run: |
+          echo "=== DNS RESOLUTION DEBUG ==="
+          echo "Looking up: ssh.businesslion.me"
+
+          echo ""
+          echo "A records (IPv4):"
+          dig +short ssh.businesslion.me A
+
+          echo ""
+          echo "AAAA records (IPv6):"
+          dig +short ssh.businesslion.me AAAA
+
+          echo ""
+          echo "All records:"
+          dig ssh.businesslion.me
+
+          echo ""
+          echo "nslookup:"
+          nslookup ssh.businesslion.me
+
       - name: Deploy to Raspberry Pi
         uses: appleboy/ssh-action@v1.0.0
         with:
