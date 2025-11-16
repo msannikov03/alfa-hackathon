@@ -15,72 +15,92 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug - Check secrets are loaded
+      - name: Force IPv4 DNS and Deploy
         run: |
-          echo "Checking if secrets are available..."
-          if [ -z "${{ secrets.PI_HOST }}" ]; then
-            echo "❌ PI_HOST is empty!"
-          else
-            echo "✅ PI_HOST is set (length: ${#PI_HOST})"
-          fi
-          if [ -z "${{ secrets.PI_USER }}" ]; then
-            echo "❌ PI_USER is empty!"
-          else
-            echo "✅ PI_USER is set"
-          fi
-          if [ -z "${{ secrets.PI_SSH_KEY }}" ]; then
-            echo "❌ PI_SSH_KEY is empty!"
-          else
-            echo "✅ PI_SSH_KEY is set"
-          fi
-        env:
-          PI_HOST: ${{ secrets.PI_HOST }}
+          echo "🔍 Resolving IPv4 address for ssh.businesslion.me..."
+          # Get IPv4 address only (bypass IPv6)
+          PI_IP=$(dig +short ssh.businesslion.me A | head -n1)
 
-      - name: Debug - Test DNS resolution
-        run: |
-          echo "Testing DNS resolution..."
-          nslookup ssh.businesslion.me || true
-          dig ssh.businesslion.me || true
-          host ssh.businesslion.me || true
+          if [ -z "$PI_IP" ]; then
+            echo "❌ Could not resolve IPv4 address"
+            exit 1
+          fi
 
-          echo "Testing ping..."
-          ping -c 2 ssh.businesslion.me || true
+          echo "✅ Resolved to IPv4: $PI_IP"
 
-      - name: Debug - Test SSH connection
-        run: |
-          echo "Setting up SSH key..."
+          # Setup SSH with IPv4 only
           mkdir -p ~/.ssh
           echo "${{ secrets.PI_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
-          echo "Testing SSH connection with verbose output..."
-          ssh -vvv -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              -o ConnectTimeout=10 \
-              ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }} \
-              "echo 'SSH Connection successful!'" || echo "SSH connection failed"
+          cat >> ~/.ssh/config << EOF
+          Host pi-deploy
+            HostName $PI_IP
+            User ${{ secrets.PI_USER }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            AddressFamily inet
+          EOF
 
-      - name: Deploy to Raspberry Pi
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.PI_HOST }}
-          username: ${{ secrets.PI_USER }}
-          key: ${{ secrets.PI_SSH_KEY }}
-          port: 22
-          timeout: 60s
-          command_timeout: 30m
-          debug: true
-          script: |
+          echo "🔌 Testing SSH connection..."
+          ssh -o ConnectTimeout=10 pi-deploy "echo 'SSH connection successful!'"
+
+          echo "🚀 Starting deployment to Raspberry Pi..."
+          ssh pi-deploy << 'ENDSSH'
             set -e
-            echo "🚀 Starting deployment..."
-            cd ~/alfa-hackathon
+            echo "📂 Navigating to project directory..."
+            cd ~/alfa-hackathon || { echo "Project directory not found!"; exit 1; }
+
+            echo "📥 Pulling latest code from GitHub..."
             git fetch origin
             git reset --hard origin/main
+
+            echo "🛑 Stopping existing containers..."
             docker compose -f docker-compose.yml -f docker-compose.prod.yml down || true
+
+            echo "🧹 Cleaning up old Docker images..."
             docker image prune -f || true
+
+            echo "🔨 Building Docker images..."
             docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache
+
+            echo "▶️  Starting services..."
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+            echo "⏳ Waiting for services to start..."
             sleep 15
+
+            echo "🏥 Checking service health..."
             docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-            echo "✅ Deployment completed!"
+
+            echo "🔍 Testing backend health..."
+            for i in {1..10}; do
+              if curl -f http://localhost:8000/health > /dev/null 2>&1; then
+                echo "✅ Backend is healthy!"
+                break
+              fi
+              echo "Waiting for backend... ($i/10)"
+              sleep 3
+            done
+
+            echo "📋 Recent backend logs:"
+            docker compose logs --tail=20 backend
+
+            echo "✅ Deployment completed successfully!"
+            echo "🌐 App should be available at https://alfa.businesslion.me"
+          ENDSSH
+
+      - name: Deployment notification
+        if: success()
+        run: |
+          echo "✅ Successfully deployed to Raspberry Pi!"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+
+      - name: Deployment failed
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Check the logs above for details"
+          exit 1
