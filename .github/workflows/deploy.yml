@@ -15,40 +15,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug DNS Resolution
+      - name: Deploy via SSH (Force IPv4)
         run: |
-          echo "=== DNS RESOLUTION DEBUG ==="
-          echo "Looking up: ssh.businesslion.me"
+          echo "🔧 Setting up SSH with forced IPv4..."
 
-          echo ""
-          echo "A records (IPv4):"
-          dig +short ssh.businesslion.me A
+          # Create SSH key
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PI_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
 
-          echo ""
-          echo "AAAA records (IPv6):"
-          dig +short ssh.businesslion.me AAAA
+          # Force IPv4 by using SSH options
+          cat > ~/.ssh/config << 'EOF'
+          Host pi-deploy
+            HostName ${{ secrets.PI_HOST }}
+            User ${{ secrets.PI_USER }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            AddressFamily inet
+            IPQoS throughput
+          EOF
 
-          echo ""
-          echo "All records:"
-          dig ssh.businesslion.me
+          echo "🔌 Testing SSH connection (IPv4 only)..."
+          ssh -4 -o ConnectTimeout=30 pi-deploy "echo 'SSH connection successful!'" || {
+            echo "❌ SSH connection failed"
+            exit 1
+          }
 
-          echo ""
-          echo "nslookup:"
-          nslookup ssh.businesslion.me
-
-      - name: Deploy to Raspberry Pi
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.PI_HOST }}
-          username: ${{ secrets.PI_USER }}
-          key: ${{ secrets.PI_SSH_KEY }}
-          port: 22
-          timeout: 60s
-          command_timeout: 30m
-          script: |
+          echo "🚀 Starting deployment..."
+          ssh -4 pi-deploy << 'ENDSSH'
             set -e
-            echo "🚀 Starting deployment to Raspberry Pi..."
-
+            echo "📂 Navigating to project directory..."
             cd ~/alfa-hackathon || { echo "Project directory not found!"; exit 1; }
 
             echo "📥 Pulling latest code from GitHub..."
@@ -88,6 +85,7 @@ jobs:
 
             echo "✅ Deployment completed successfully!"
             echo "🌐 App should be available at https://alfa.businesslion.me"
+          ENDSSH
 
       - name: Deployment notification
         if: success()
