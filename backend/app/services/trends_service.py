@@ -1,12 +1,13 @@
 import json
 import logging
 from datetime import datetime, timedelta
+from typing import Dict, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, desc
 import pandas as pd
 
-from app.models import FinancialTransaction, CompetitorAction, LegalUpdate
+from app.models import FinancialTransaction, CompetitorAction, LegalUpdate, Competitor
 from app.services.llm_service import llm_service
 
 logger = logging.getLogger(__name__)
