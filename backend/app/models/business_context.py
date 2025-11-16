@@ -1,18 +1,22 @@
-import uuid
-from sqlalchemy import Column, Integer, String, JSON, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, JSON, ForeignKey, DateTime
+from sqlalchemy.sql import func
 from app.database import Base
 
 class BusinessContext(Base):
     __tablename__ = "business_contexts"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
-    
-    raw_description = Column(String, nullable=False)
-    structured_data = Column(JSON, nullable=True) # {industry, business_type, location, keywords}
-    
-    # The embedding will be stored as a list of floats.
-    # For real applications, a dedicated vector type from pgvector would be better.
-    embedding = Column(ARRAY(String), nullable=True)
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+
+    business_name = Column(String, nullable=True)
+    business_type = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    operating_hours = Column(JSON, nullable=True)
+    average_daily_revenue = Column(Integer, nullable=True)
+    typical_customer_count = Column(Integer, nullable=True)
+    employee_count = Column(Integer, nullable=True)
+    key_metrics = Column(JSON, nullable=True)
+    decision_thresholds = Column(JSON, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
