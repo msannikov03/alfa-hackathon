@@ -45,11 +45,13 @@ class TrendsService:
 
         # Competitor Summary
         comp_actions_result = await db.execute(
-            select(CompetitorAction)
-            .join(CompetitorAction.competitor)
+            select(CompetitorAction, Competitor)
+            .join(Competitor, CompetitorAction.competitor_id == Competitor.id)
             .where(Competitor.user_id == user_id, CompetitorAction.detected_at >= thirty_days_ago)
         )
-        competitor_actions = [{"competitor": r.competitor.name, "action": r.details} for r in comp_actions_result.scalars().all()]
+        competitor_actions = []
+        for action, competitor in comp_actions_result.all():
+            competitor_actions.append({"competitor": competitor.name, "action": action.details})
 
         # Legal Summary
         legal_updates_result = await db.execute(
@@ -65,7 +67,21 @@ class TrendsService:
         response_str = await llm_service._call_llm([{"role": "user", "content": prompt}])
 
         try:
-            trends = json.loads(response_str)
+            # Remove markdown code blocks if present
+            cleaned_response = response_str.strip()
+            if cleaned_response.startswith('```json'):
+                cleaned_response = cleaned_response[7:]  # Remove ```json
+            if cleaned_response.startswith('```'):
+                cleaned_response = cleaned_response[3:]  # Remove ```
+            if cleaned_response.endswith('```'):
+                cleaned_response = cleaned_response[:-3]  # Remove trailing ```
+            cleaned_response = cleaned_response.strip()
+
+            trends = json.loads(cleaned_response)
+
+            # Handle both list format and dict format with 'insights' key
+            if isinstance(trends, dict) and 'insights' in trends:
+                trends = trends['insights']
 
             # 4. --- Persist trends to database ---
             if isinstance(trends, list):
@@ -85,10 +101,13 @@ class TrendsService:
                 await db.commit()
                 logger.info(f"Persisted {len(trends)} trends to database for user {user_id}")
 
-            return trends
+                return trends
+            else:
+                logger.warning("Trends response is not a list")
+                return []
         except json.JSONDecodeError:
             logger.error(f"Failed to decode trends JSON from LLM: {response_str}")
-            return {"error": "Failed to generate trends from AI."}
+            return []  # Return empty list to match response type
 
     def _build_consultant_prompt(self, financials: Dict, competitors: List, legals: List) -> str:
         # This prompt is structured exactly as designed in the planning phase.

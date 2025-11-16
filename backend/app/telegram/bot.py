@@ -11,12 +11,19 @@ from telegram.ext import (
 from app.config import settings
 from app.services.llm_service import llm_service
 from app.agents.briefing_agent import briefing_agent
+from app.services.competitor_service import competitor_service
+from app.services.legal_service import legal_service
+from app.services.finance_service import finance_service
+from app.services.trends_service import trends_service
 from app.database import AsyncSessionLocal
-from app.models import User, AutonomousAction, BusinessContext
+from app.models import User, AutonomousAction, BusinessContext, Competitor, LegalUpdate, ComplianceAlert, CashFlowPrediction
 from sqlalchemy import select
 from datetime import datetime
 from passlib.context import CryptContext
 import logging
+import io
+import tempfile
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +38,9 @@ SET_PASSWORD = range(1)
 
 # Conversation states for mode selection
 SELECT_MODE = range(1)
+
+# Conversation states for competitor addition
+COMPETITOR_NAME, COMPETITOR_URL = range(2)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -476,26 +486,40 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show help information"""
     help_text = """❓ Справка по Alfa Business Assistant
 
-Основные команды:
+📊 Основные команды:
 /start - Начать работу
 /setup - Настроить бизнес-профиль
 /setpassword - Установить пароль для доступа к дашборду
 /briefing - Получить утренний брифинг
 /stats - Статистика за сегодня
 /approve - Проверить одобрения
+/changemode - Переключить режим (Demo/Live)
 /help - Эта справка
+
+🎯 Мониторинг конкурентов:
+/competitors - Список конкурентов
+/addcompetitor - Добавить конкурента
+/scancompetitors - Сканировать конкурентов
+
+⚖️ Юридический мониторинг:
+/legal - Последние обновления законов
+/setcontext - Настроить бизнес-контекст
+/compliance - Задачи по соблюдению
+
+💰 Финансовая аналитика:
+/forecast - Прогноз денежного потока
+📎 Отправьте CSV - Загрузить транзакции
+
+📈 Стратегический анализ:
+/trends - Анализ трендов
 
 Что я умею:
 ✅ Автономно выполнять задачи
 📊 Генерировать ежедневные брифинги
-💰 Принимать финансовые решения в пределах порогов
-📈 Анализировать паттерны и учиться
-🔔 Отправлять уведомления о важных событиях
-
-Пороги решений:
-• До ₽10,000 - автоматически
-• ₽10,000-₽50,000 - требуется одобрение
-• Более ₽50,000 - обязательная эскалация
+💰 Принимать финансовые решения
+🎯 Отслеживать конкурентов
+⚖️ Мониторить законодательство
+📈 Предсказывать финансы
 
 Просто напишите мне, и я помогу! 💪"""
 
@@ -571,8 +595,502 @@ async def setpassword_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return ConversationHandler.END
 
 
+# ============ COMPETITORS COMMANDS ============
+
+async def competitors_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """List all competitors"""
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(Competitor).where(Competitor.user_id == user_id)
+            )
+            competitors = result.scalars().all()
+
+            if not competitors:
+                response = "📊 У вас пока нет конкурентов для мониторинга.\n\n"
+                response += "Используйте /addcompetitor чтобы добавить первого конкурента."
+            else:
+                response = f"📊 Ваши конкуренты ({len(competitors)}):\n\n"
+                for comp in competitors:
+                    response += f"• {comp.name}\n"
+                    if comp.website_url:
+                        response += f"  🌐 {comp.website_url}\n"
+                    if comp.last_scanned:
+                        response += f"  📅 Последнее сканирование: {comp.last_scanned.strftime('%d.%m.%Y %H:%M')}\n"
+                    else:
+                        response += "  ⏳ Еще не сканировался\n"
+                    response += "\n"
+
+                response += "\nИспользуйте /addcompetitor чтобы добавить еще\n"
+                response += "Используйте /scancompetitors чтобы запустить сканирование"
+
+            await update.message.reply_text(response)
+    except Exception as e:
+        logger.error(f"Error listing competitors: {e}")
+        await update.message.reply_text("❌ Ошибка при получении списка конкурентов.")
+
+
+async def addcompetitor_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start competitor addition wizard"""
+    await update.message.reply_text(
+        "🎯 Добавление конкурента\n\n"
+        "Как называется конкурент?\n\n"
+        "Отправьте /cancel чтобы отменить."
+    )
+    return COMPETITOR_NAME
+
+
+async def addcompetitor_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Save competitor name and ask for URL"""
+    context.user_data['competitor_name'] = update.message.text
+
+    await update.message.reply_text(
+        f"Отлично! Конкурент: {update.message.text}\n\n"
+        "Теперь отправьте URL сайта конкурента:\n"
+        "(например: https://competitor.com)"
+    )
+    return COMPETITOR_URL
+
+
+async def addcompetitor_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Save competitor URL and complete"""
+    url = update.message.text
+    competitor_name = context.user_data.get('competitor_name')
+
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
+
+    try:
+        async with AsyncSessionLocal() as session:
+            competitor_data = {
+                "name": competitor_name,
+                "website_url": url
+            }
+            competitor = await competitor_service.create(session, user_id, competitor_data)
+
+            await update.message.reply_text(
+                f"✅ Конкурент добавлен!\n\n"
+                f"🎯 Название: {competitor.name}\n"
+                f"🌐 Сайт: {competitor.website_url}\n\n"
+                f"Используйте /scancompetitors чтобы начать мониторинг."
+            )
+    except Exception as e:
+        logger.error(f"Error adding competitor: {e}")
+        await update.message.reply_text("❌ Ошибка при добавлении конкурента.")
+
+    return ConversationHandler.END
+
+
+async def addcompetitor_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel competitor addition"""
+    await update.message.reply_text(
+        "Добавление конкурента отменено. Используйте /addcompetitor чтобы попробовать снова."
+    )
+    return ConversationHandler.END
+
+
+async def scancompetitors_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Force scan all competitors"""
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
+
+    await update.message.reply_text("🔍 Запускаю сканирование конкурентов...")
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(Competitor).where(Competitor.user_id == user_id)
+            )
+            competitors = result.scalars().all()
+
+            if not competitors:
+                await update.message.reply_text("У вас пока нет конкурентов для сканирования.")
+                return
+
+            scanned = 0
+            failed = 0
+            for comp in competitors:
+                try:
+                    scan_result = await competitor_service.scan_competitor(session, comp.id, user_id)
+                    if not scan_result.get("success", False):
+                        failed += 1
+                        error_msg = scan_result.get('error', 'Неизвестная ошибка')
+                        details = scan_result.get('details', [])
+                        response_text = f"⚠️ {comp.name}: {error_msg}"
+                        if details:
+                            response_text += "\n\nПодробности:\n"
+                            for detail in details:
+                                response_text += f"• {detail}\n"
+                        await update.message.reply_text(response_text)
+                    else:
+                        scanned += 1
+                        actions_found = scan_result.get('found_actions', 0)
+                        if actions_found > 0:
+                            await update.message.reply_text(
+                                f"✅ {comp.name}: найдено {actions_found} изменений!"
+                            )
+                        else:
+                            await update.message.reply_text(
+                                f"✅ {comp.name}: {scan_result.get('message', 'изменений не обнаружено')}"
+                            )
+                except Exception as e:
+                    logger.error(f"Error scanning competitor {comp.name}: {e}")
+                    failed += 1
+                    await update.message.reply_text(
+                        f"❌ {comp.name}: Критическая ошибка при сканировании"
+                    )
+
+            await update.message.reply_text(
+                f"📊 Сканирование завершено!\n\n"
+                f"✅ Успешно: {scanned}\n"
+                f"❌ Ошибок: {failed}"
+            )
+    except Exception as e:
+        logger.error(f"Error scanning competitors: {e}")
+        await update.message.reply_text("❌ Ошибка при сканировании конкурентов.")
+
+
+# ============ LEGAL COMMANDS ============
+
+async def legal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View recent legal updates"""
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(LegalUpdate)
+                .where(LegalUpdate.user_id == user_id)
+                .order_by(LegalUpdate.detected_at.desc())
+                .limit(5)
+            )
+            updates = result.scalars().all()
+
+            if not updates:
+                response = "⚖️ Релевантных юридических обновлений пока нет.\n\n"
+                response += "Используйте /setcontext чтобы настроить бизнес-контекст для мониторинга."
+            else:
+                response = f"⚖️ Последние юридические обновления ({len(updates)}):\n\n"
+                for upd in updates:
+                    impact_emoji = {"High": "🔴", "Medium": "🟡", "Low": "🟢"}.get(upd.impact_level, "⚪")
+                    response += f"{impact_emoji} {upd.title}\n"
+                    response += f"📝 {upd.summary[:200]}...\n"
+                    response += f"🔗 {upd.url}\n"
+                    response += f"📅 {upd.detected_at.strftime('%d.%m.%Y')}\n\n"
+
+            await update.message.reply_text(response, disable_web_page_preview=True)
+    except Exception as e:
+        logger.error(f"Error getting legal updates: {e}")
+        await update.message.reply_text("❌ Ошибка при получении юридических обновлений.")
+
+
+async def setcontext_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Set business context for legal monitoring"""
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
+
+    # Check if user has a message
+    if len(context.args) == 0:
+        await update.message.reply_text(
+            "⚖️ Установка бизнес-контекста для юридического мониторинга\n\n"
+            "Опишите ваш бизнес в свободной форме:\n"
+            "Например: 'Кофейня в Москве, работаем как ООО'\n\n"
+            "Используйте: /setcontext [описание бизнеса]"
+        )
+        return
+
+    description = " ".join(context.args)
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await legal_service.update_business_context(session, user_id, description)
+            if result:
+                await update.message.reply_text(
+                    f"✅ Бизнес-контекст сохранен!\n\n"
+                    f"📝 Описание: {description}\n\n"
+                    f"Теперь система будет отслеживать релевантные законодательные изменения."
+                )
+            else:
+                await update.message.reply_text(
+                    "❌ Не удалось обработать описание. Попробуйте еще раз."
+                )
+    except Exception as e:
+        logger.error(f"Error setting business context: {e}")
+        await update.message.reply_text("❌ Ошибка при сохранении бизнес-контекста.")
+
+
+async def compliance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View compliance alerts"""
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(ComplianceAlert)
+                .where(ComplianceAlert.user_id == user_id)
+                .where(ComplianceAlert.status != 'completed')
+                .order_by(ComplianceAlert.due_date.asc())
+            )
+            alerts = result.scalars().all()
+
+            if not alerts:
+                response = "✅ Нет активных задач по соблюдению законодательства!"
+            else:
+                response = f"⚠️ Активные задачи по соблюдению ({len(alerts)}):\n\n"
+                for alert in alerts:
+                    days_left = (alert.due_date - datetime.now().date()).days if alert.due_date else 0
+                    urgency = "🔴" if days_left <= 3 else "🟡" if days_left <= 7 else "🟢"
+
+                    response += f"{urgency} До {alert.due_date.strftime('%d.%m.%Y')} ({days_left} дней)\n"
+                    response += f"📌 {alert.action_required[:200]}\n"
+                    response += f"Статус: {alert.status}\n\n"
+
+            await update.message.reply_text(response)
+    except Exception as e:
+        logger.error(f"Error getting compliance alerts: {e}")
+        await update.message.reply_text("❌ Ошибка при получении задач.")
+
+
+# ============ FINANCE COMMANDS ============
+
+async def forecast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View latest financial forecast"""
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(CashFlowPrediction)
+                .where(CashFlowPrediction.user_id == user_id)
+                .order_by(CashFlowPrediction.created_at.desc())
+            )
+            forecast = result.scalar_one_or_none()
+
+            if not forecast:
+                response = "💰 У вас пока нет финансового прогноза.\n\n"
+                response += "Отправьте CSV файл с транзакциями, и я создам прогноз на 7 дней!"
+            else:
+                response = f"💰 Прогноз денежного потока на 7 дней:\n"
+                response += f"📅 Создан: {forecast.created_at.strftime('%d.%m.%Y %H:%M')}\n\n"
+
+                # Show predicted data
+                if forecast.predicted_data:
+                    for day in forecast.predicted_data[:7]:
+                        balance = day.get('balance', 0)
+                        emoji = "✅" if balance > 0 else "⚠️" if balance > -10000 else "❌"
+                        response += f"{emoji} {day.get('date', 'N/A')}: ₽{balance:,.0f}\n"
+
+                # Show risks
+                risks = forecast.insights.get('risks', [])
+                if risks:
+                    response += f"\n⚠️ Риски:\n"
+                    for risk in risks[:3]:
+                        response += f"• {risk.get('message', 'N/A')}\n"
+
+                # Show recommendations
+                recommendations = forecast.insights.get('recommendations', [])
+                if recommendations:
+                    response += f"\n💡 Рекомендации:\n"
+                    for rec in recommendations[:3]:
+                        response += f"• {rec.get('message', 'N/A')}\n"
+
+            await update.message.reply_text(response)
+    except Exception as e:
+        logger.error(f"Error getting forecast: {e}")
+        await update.message.reply_text("❌ Ошибка при получении прогноза.")
+
+
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle CSV file uploads for financial forecasting"""
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
+
+    document = update.message.document
+
+    # Check if it's a CSV file
+    if not document.file_name.endswith('.csv'):
+        await update.message.reply_text(
+            "⚠️ Пожалуйста, отправьте CSV файл с финансовыми транзакциями."
+        )
+        return
+
+    await update.message.reply_text("📊 Обрабатываю CSV файл...")
+
+    try:
+        # Download file
+        file = await context.bot.get_file(document.file_id)
+        file_content = await file.download_as_bytearray()
+
+        async with AsyncSessionLocal() as session:
+            # Step 1: Get column mapping from LLM
+            import csv
+            content_str = file_content.decode('utf-8')
+            reader = csv.reader(io.StringIO(content_str))
+            headers = next(reader)
+            rows_list = list(reader)
+            sample_rows = rows_list[:min(3, len(rows_list))]
+
+            await update.message.reply_text("🤖 AI анализирует структуру файла...")
+
+            mapping = await finance_service.get_column_mapping_from_llm(headers, sample_rows)
+
+            # Ask for current balance
+            context.user_data['csv_file'] = bytes(file_content)
+            context.user_data['csv_mapping'] = mapping
+
+            await update.message.reply_text(
+                f"✅ Файл обработан!\n\n"
+                f"AI определил колонки:\n"
+                f"📅 Дата: {mapping['date_column']}\n"
+                f"📝 Описание: {mapping['description_column']}\n"
+                f"💵 Сумма: {mapping['amount_logic']}\n\n"
+                f"Теперь отправьте текущий баланс (число):"
+            )
+
+            # Set state to wait for balance
+            context.user_data['waiting_for_balance'] = True
+
+    except Exception as e:
+        logger.error(f"Error processing CSV: {e}")
+        await update.message.reply_text(
+            f"❌ Ошибка при обработке файла: {str(e)}\n\n"
+            f"Убедитесь, что файл содержит корректные данные о транзакциях."
+        )
+
+
+async def handle_balance_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle balance input after CSV upload"""
+    if not context.user_data.get('waiting_for_balance'):
+        return
+
+    try:
+        current_balance = float(update.message.text.replace(',', '').replace(' ', ''))
+    except ValueError:
+        await update.message.reply_text("⚠️ Введите корректное число для баланса.")
+        return
+
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
+
+    await update.message.reply_text("📈 Создаю прогноз...")
+
+    try:
+        async with AsyncSessionLocal() as session:
+            csv_file = context.user_data['csv_file']
+            mapping = context.user_data['csv_mapping']
+
+            # Store transactions
+            await finance_service.store_transactions_from_csv(session, user_id, csv_file, mapping)
+
+            # Create forecast
+            forecast_result = await finance_service.create_forecast(session, user_id, current_balance)
+
+            response = "✅ Прогноз создан!\n\n"
+            response += "Используйте /forecast чтобы посмотреть детали."
+
+            await update.message.reply_text(response)
+
+            # Clean up
+            context.user_data['waiting_for_balance'] = False
+            context.user_data.pop('csv_file', None)
+            context.user_data.pop('csv_mapping', None)
+
+    except Exception as e:
+        logger.error(f"Error creating forecast: {e}")
+        await update.message.reply_text(
+            f"❌ Ошибка при создании прогноза: {str(e)}"
+        )
+        context.user_data['waiting_for_balance'] = False
+
+
+# ============ TRENDS COMMAND ============
+
+async def trends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """View strategic trends"""
+    user_id = context.user_data.get('user_id')
+    if not user_id:
+        user = update.effective_user
+        db_user = await _get_or_create_user(user)
+        user_id = db_user.id
+
+    await update.message.reply_text("📊 Анализирую стратегические тренды...")
+
+    try:
+        async with AsyncSessionLocal() as session:
+            trends = await trends_service.identify_trends(session, user_id)
+
+            if not trends:
+                response = "📈 Пока недостаточно данных для анализа трендов.\n\n"
+                response += "Добавьте данные:\n"
+                response += "• Конкуренты: /addcompetitor\n"
+                response += "• Финансы: отправьте CSV\n"
+                response += "• Юридический контекст: /setcontext"
+            else:
+                response = f"📈 Стратегические тренды ({len(trends)}):\n\n"
+                for trend in trends[:5]:
+                    type_emoji = {
+                        "Opportunity": "✨",
+                        "Threat": "⚠️",
+                        "Efficiency Improvement": "⚡"
+                    }.get(trend.get('insight_type'), "📊")
+
+                    response += f"{type_emoji} {trend.get('title', 'N/A')}\n"
+                    response += f"📝 {trend.get('observation', 'N/A')}\n"
+
+                    recommendations = trend.get('recommendation', {})
+                    if isinstance(recommendations, dict) and 'actions' in recommendations:
+                        response += f"💡 Действия:\n"
+                        for action in recommendations['actions'][:2]:
+                            response += f"  • {action}\n"
+
+                    response += f"🎯 Важность: {trend.get('strength_score', 0)}/10\n\n"
+
+            await update.message.reply_text(response)
+    except Exception as e:
+        logger.error(f"Error getting trends: {e}")
+        await update.message.reply_text("❌ Ошибка при анализе трендов.")
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle regular text messages"""
+    # First check if waiting for balance input
+    if context.user_data.get('waiting_for_balance'):
+        await handle_balance_input(update, context)
+        return
+
     # Check if it's a group chat and bot is mentioned
     if update.message.chat.type in ["group", "supergroup"]:
         # Only respond to mentions in groups
@@ -793,7 +1311,18 @@ async def setup_telegram_bot():
     )
     application.add_handler(password_conv_handler)
 
-    # Add command handlers
+    # Add competitor addition conversation handler
+    addcompetitor_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("addcompetitor", addcompetitor_start)],
+        states={
+            COMPETITOR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcompetitor_name)],
+            COMPETITOR_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, addcompetitor_url)],
+        },
+        fallbacks=[CommandHandler("cancel", addcompetitor_cancel)],
+    )
+    application.add_handler(addcompetitor_conv_handler)
+
+    # Add command handlers - Core
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("briefing", briefing))
     application.add_handler(CommandHandler("stats", stats))
@@ -801,10 +1330,28 @@ async def setup_telegram_bot():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("changemode", changemode_command))
 
-    # Add callback query handler for buttons (must be after setup handler)
+    # Add command handlers - Competitors
+    application.add_handler(CommandHandler("competitors", competitors_command))
+    application.add_handler(CommandHandler("scancompetitors", scancompetitors_command))
+
+    # Add command handlers - Legal
+    application.add_handler(CommandHandler("legal", legal_command))
+    application.add_handler(CommandHandler("setcontext", setcontext_command))
+    application.add_handler(CommandHandler("compliance", compliance_command))
+
+    # Add command handlers - Finance
+    application.add_handler(CommandHandler("forecast", forecast_command))
+
+    # Add command handlers - Trends
+    application.add_handler(CommandHandler("trends", trends_command))
+
+    # Add document handler for CSV uploads
+    application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+
+    # Add callback query handler for buttons (must be after conversation handlers)
     application.add_handler(CallbackQueryHandler(button_callback))
 
-    # Add message handler
+    # Add message handler (must be last)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Start bot and begin polling
@@ -814,4 +1361,4 @@ async def setup_telegram_bot():
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True,
     )
-    logger.info("Telegram bot started with enhanced features and polling for updates")
+    logger.info("Telegram bot started with Phase 2 features and polling for updates")

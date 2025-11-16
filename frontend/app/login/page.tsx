@@ -102,7 +102,25 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm font-semibold text-blue-900 mb-2">Demo Account:</p>
+            <div className="space-y-1 text-sm text-blue-800">
+              <p><span className="font-medium">Username:</span> demo_admin</p>
+              <p><span className="font-medium">Password:</span> demo123</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername("demo_admin");
+                setPassword("demo123");
+              }}
+              className="mt-3 w-full py-2 px-4 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+            >
+              Use Demo Account
+            </button>
+          </div>
+
+          <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
               Don't have a password?{" "}
               <span className="text-blue-600 font-medium">

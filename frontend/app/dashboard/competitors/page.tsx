@@ -56,71 +56,29 @@ export default function CompetitorsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const queryClient = useQueryClient();
 
-    // Dummy data for demonstration as backend is not active
-    const [dummyCompetitors, setDummyCompetitors] = useState([
-        {
-            id: '1',
-            name: 'Кофемания',
-            website_url: 'https://www.coffeemania.ru',
-            their_advantages: ['Широкая сеть заведений', 'Высокий уровень сервиса', 'Известный бренд'],
-            our_advantages: ['Более низкие цены', 'Уникальные сорта кофе', 'Уютная атмосфера'],
-            ai_actions: ['Запустить акцию "Кофе с собой за полцены" в утренние часы.', 'Предложить программу лояльности для постоянных клиентов.', 'Активно продвигать уникальные сорта кофе в соцсетях.'],
-        },
-        {
-            id: '2',
-            name: 'Шоколадница',
-            website_url: 'https://shoko.ru',
-            their_advantages: ['Разнообразное меню (еда)', 'Удобное расположение', 'Большая проходимость'],
-            our_advantages: ['Более современный дизайн', 'Быстрое обслуживание', 'Фокус на качестве кофе'],
-            ai_actions: ['Разработать комбо-предложения "кофе + десерт" для увеличения среднего чека.', 'Улучшить скорость обслуживания в часы пик.', 'Провести дегустацию новых десертов.'],
-        },
-        {
-            id: '3',
-            name: 'Starbucks',
-            website_url: 'https://www.starbucks.ru',
-            their_advantages: ['Мировой бренд', 'Мобильное приложение', 'Персонализация напитков'],
-            our_advantages: ['Более гибкая ценовая политика', 'Локальная адаптация меню', 'Более тесное взаимодействие с комьюнити'],
-            ai_actions: ['Запустить локальную рекламную кампанию с акцентом на уникальность.', 'Предложить кастомизацию напитков, недоступную у конкурента.', 'Организовать мероприятия для местного сообщества.'],
-        },
-    ]);
+    // Fetch real competitors from API
+    const { data: competitors, isLoading: isLoadingCompetitors } = useQuery({
+        queryKey: ["competitors"],
+        queryFn: () => api.get("/competitors").then(res => res.data),
+    });
 
     const addCompetitorMutation = useMutation({
-        mutationFn: (newCompetitor: any) => {
-            // Simulate API call and add to dummy data
-            return new Promise(resolve => setTimeout(() => {
-                const newId = (dummyCompetitors.length + 1).toString();
-                const newComp = {
-                    ...newCompetitor,
-                    id: newId,
-                    their_advantages: ['(AI-анализ в процессе)'],
-                    our_advantages: ['(AI-анализ в процессе)'],
-                    ai_actions: ['(AI-анализ в процессе)'],
-                };
-                setDummyCompetitors(prev => [...prev, newComp]);
-                resolve(newComp);
-            }, 500));
-        },
+        mutationFn: (newCompetitor: any) => api.post("/competitors", newCompetitor).then(res => res.data),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["competitors"] }),
     });
 
     const deleteCompetitorMutation = useMutation({
-        mutationFn: (id: string) => {
-            // Simulate API call and remove from dummy data
-            return new Promise(resolve => setTimeout(() => {
-                setDummyCompetitors(prev => prev.filter(comp => comp.id !== id));
-                resolve(true);
-            }, 500));
-        },
+        mutationFn: (id: string) => api.delete(`/competitors/${id}`),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["competitors"] }),
     });
 
-    // No actual scan mutation needed for dummy data, but keep the button for UI
     const scanCompetitorMutation = useMutation({
-        mutationFn: (id: string) => {
-            return new Promise(resolve => setTimeout(() => {
-                console.log(`Simulating scan for ${id}`);
-                resolve(true);
-            }, 1000));
+        mutationFn: (id: string) => api.post(`/competitors/${id}/scan`).then(res => res.data),
+        onSuccess: () => {
+            // Refetch competitors after scan
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["competitors"] });
+            }, 3000);
         },
     });
 
@@ -138,12 +96,18 @@ export default function CompetitorsPage() {
                 </div>
 
                 <div className="space-y-6">
-                    {dummyCompetitors.length === 0 && (
+                    {isLoadingCompetitors && (
+                        <Card className="p-6 text-center">
+                            <Loader2 className="animate-spin mx-auto text-cyan-400" size={32} />
+                            <p className="text-gray-400 mt-2">Загрузка конкурентов...</p>
+                        </Card>
+                    )}
+                    {!isLoadingCompetitors && (!competitors || competitors.length === 0) && (
                         <Card className="p-6 text-center text-gray-500">
                             <p>Пока нет конкурентов. Нажмите "+" чтобы добавить первого.</p>
                         </Card>
                     )}
-                    {dummyCompetitors.map((competitor) => (
+                    {competitors?.map((competitor: any) => (
                         <Card key={competitor.id} className="p-6">
                             <div className="flex justify-between items-center mb-4">
                                 <div>
@@ -160,26 +124,19 @@ export default function CompetitorsPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 border-t border-cyan-500/20 pt-4">
-                                <div>
-                                    <h4 className="font-semibold text-lg text-gray-300 flex items-center gap-2 mb-2"><TrendingDown size={20} className="text-red-400" /> Их преимущества</h4>
-                                    <ul className="list-disc list-inside text-sm text-gray-400 space-y-1">
-                                        {competitor.their_advantages.map((adv, i) => <li key={i}>{adv}</li>)}
-                                    </ul>
+                            {competitor.last_scanned ? (
+                                <div className="mt-4 border-t border-cyan-500/20 pt-4">
+                                    <p className="text-xs text-gray-500">
+                                        Последнее сканирование: {new Date(competitor.last_scanned).toLocaleString()}
+                                    </p>
                                 </div>
-                                <div>
-                                    <h4 className="font-semibold text-lg text-gray-300 flex items-center gap-2 mb-2"><TrendingUp size={20} className="text-green-400" /> Наши преимущества</h4>
-                                    <ul className="list-disc list-inside text-sm text-gray-400 space-y-1">
-                                        {competitor.our_advantages.map((adv, i) => <li key={i}>{adv}</li>)}
-                                    </ul>
+                            ) : (
+                                <div className="mt-4 border-t border-cyan-500/20 pt-4 bg-gray-800/30 rounded-lg p-4 text-center">
+                                    <p className="text-gray-400 text-sm">
+                                        Нажмите "Сканировать" для анализа конкурента и получения рекомендаций AI
+                                    </p>
                                 </div>
-                                <div>
-                                    <h4 className="font-semibold text-lg text-gray-300 flex items-center gap-2 mb-2"><Lightbulb size={20} className="text-yellow-400" /> Действия AI</h4>
-                                    <ul className="list-disc list-inside text-sm text-gray-400 space-y-1">
-                                        {competitor.ai_actions.map((action, i) => <li key={i}>{action}</li>)}
-                                    </ul>
-                                </div>
-                            </div>
+                            )}
                         </Card>
                     ))}
                 </div>

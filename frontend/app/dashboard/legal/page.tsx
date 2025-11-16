@@ -41,6 +41,7 @@ const LegalUpdateCard = ({ update }: { update: any }) => (
 
 export default function LegalPage() {
     const queryClient = useQueryClient();
+    const [scanStarted, setScanStarted] = useState(false);
 
     const { data: updates, isLoading: isLoadingUpdates } = useQuery({
         queryKey: ["legalUpdates"],
@@ -51,8 +52,19 @@ export default function LegalPage() {
         mutationFn: () => api.post("/legal/scan"),
         onSuccess: () => {
             // We can't invalidate immediately, as it's a background task.
-            // We can show a notification instead. For now, we just log it.
+            // Show user that scan is initiated, and refetch after a delay
             console.log("Scan initiated");
+            setScanStarted(true);
+
+            // Hide notification after 5 seconds
+            setTimeout(() => {
+                setScanStarted(false);
+            }, 5000);
+
+            // Refetch after 5 seconds to see if new data is available
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["legalUpdates"] });
+            }, 5000);
         }
     });
 
@@ -68,6 +80,15 @@ export default function LegalPage() {
                         Сканировать
                     </NeonButton>
                 </div>
+
+                {scanStarted && (
+                    <Card className="p-4 bg-blue-900/20 border-blue-500/30 mb-6">
+                        <div className="flex items-center gap-3">
+                            <Loader2 className="animate-spin text-blue-400" size={20} />
+                            <p className="text-blue-300">Сканирование законодательных изменений запущено в фоновом режиме...</p>
+                        </div>
+                    </Card>
+                )}
 
                 <div className="space-y-6">
                     <h2 className="text-2xl font-semibold tracking-tight text-gray-400 border-b-2 border-cyan-500/20 pb-2">Релевантные обновления</h2>

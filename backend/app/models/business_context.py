@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, JSON, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, JSON, ForeignKey, DateTime, Text, ARRAY
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -17,6 +17,11 @@ class BusinessContext(Base):
     employee_count = Column(Integer, nullable=True)
     key_metrics = Column(JSON, nullable=True)
     decision_thresholds = Column(JSON, nullable=True)
+
+    # Legal service fields
+    raw_description = Column(Text, nullable=True)
+    structured_data = Column(JSON, nullable=True)
+    embedding = Column(ARRAY(String), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
