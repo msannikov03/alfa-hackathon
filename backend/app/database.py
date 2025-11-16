@@ -1,7 +1,11 @@
+import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.future import select
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Convert DATABASE_URL for asyncpg
 DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
@@ -11,10 +15,13 @@ AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=F
 Base = declarative_base()
 
 async def init_db():
+    from app.models import User
+    from app.api.auth import get_password_hash
+
     async with engine.begin() as conn:
         # await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    
+
     # Seed initial data if needed
     async with AsyncSession(engine) as session:
         # Check if a default user exists
