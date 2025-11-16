@@ -44,11 +44,11 @@ export default function LegalPage() {
 
     const { data: updates, isLoading: isLoadingUpdates } = useQuery({
         queryKey: ["legalUpdates"],
-        queryFn: () => api.get("/v1/legal/updates").then(res => res.data),
+        queryFn: () => api.get("/legal/updates").then(res => res.data),
     });
 
     const scanMutation = useMutation({
-        mutationFn: () => api.post("/v1/legal/scan"),
+        mutationFn: () => api.post("/legal/scan"),
         onSuccess: () => {
             // We can't invalidate immediately, as it's a background task.
             // We can show a notification instead. For now, we just log it.

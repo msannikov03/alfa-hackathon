@@ -17,7 +17,10 @@ from app.api.trends import router as trends_router
 from app.telegram.bot import setup_telegram_bot
 from app.agents.briefing_agent import briefing_agent
 from app.services.legal_service import legal_service
+from app.services.competitor_service import competitor_service
 from app.database import AsyncSession, engine
+from sqlalchemy import select
+from app.models import User, Competitor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,19 +56,48 @@ async def lifespan(app: FastAPI):
         )
 
         # Schedule daily legal scan
-        async def run_daily_scan():
+        async def run_daily_legal_scan():
             async with AsyncSession(engine) as session:
                 await legal_service.daily_scan_and_process(session)
 
         scheduler.add_job(
-            run_daily_scan,
+            run_daily_legal_scan,
             CronTrigger(hour=5, minute=0), # Run every day at 5 AM
             id="daily_legal_scan",
             name="Scan for new legal updates daily",
         )
 
+        # Schedule competitor scanning every 2 hours
+        async def run_competitor_scan():
+            async with AsyncSession(engine) as session:
+                # Get all users
+                result = await session.execute(select(User))
+                users = result.scalars().all()
+
+                for user in users:
+                    # Get all competitors for this user
+                    comp_result = await session.execute(
+                        select(Competitor).where(Competitor.user_id == user.id)
+                    )
+                    competitors = comp_result.scalars().all()
+
+                    # Scan each competitor
+                    for competitor in competitors:
+                        try:
+                            logger.info(f"Scanning competitor {competitor.name} for user {user.id}")
+                            await competitor_service.scan_competitor(session, competitor.id, user.id)
+                        except Exception as e:
+                            logger.error(f"Error scanning competitor {competitor.name}: {e}")
+
+        scheduler.add_job(
+            run_competitor_scan,
+            CronTrigger(hour="*/2"),  # Every 2 hours
+            id="competitor_scan",
+            name="Scan all competitors every 2 hours",
+        )
+
         scheduler.start()
-        logger.info(f"Scheduler started - Morning briefings at {settings.MORNING_BRIEFING_TIME}, Daily legal scan at 5:00")
+        logger.info(f"Scheduler started - Morning briefings at {settings.MORNING_BRIEFING_TIME}, Daily legal scan at 5:00, Competitor scan every 2 hours")
 
     yield
 

@@ -7,12 +7,9 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.services.competitor_service import competitor_service
+from app.api.auth import get_current_user_optional
 
 router = APIRouter()
-
-# Since auth is not our problem, we need a temporary way to identify a user.
-# I will use a hardcoded user_id for now.
-TEMP_USER_ID = 1
 
 # Pydantic models
 class CompetitorCreate(BaseModel):
@@ -48,24 +45,27 @@ class CompetitorAction(BaseModel):
 async def create_competitor(
     competitor_in: CompetitorCreate,
     db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_optional),
 ):
     """Add a new competitor."""
-    return await competitor_service.create(db=db, user_id=TEMP_USER_ID, competitor_in=competitor_in.dict())
+    return await competitor_service.create(db=db, user_id=user_id, competitor_in=competitor_in.dict())
 
 @router.get("/", response_model=List[Competitor])
 async def list_competitors(
     db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_optional),
 ):
     """List all competitors."""
-    return await competitor_service.get_all(db=db, user_id=TEMP_USER_ID)
+    return await competitor_service.get_all(db=db, user_id=user_id)
 
 @router.get("/{competitor_id}", response_model=Competitor)
 async def get_competitor(
     competitor_id: UUID,
     db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_optional),
 ):
     """Get a specific competitor by ID."""
-    competitor = await competitor_service.get(db=db, competitor_id=competitor_id, user_id=TEMP_USER_ID)
+    competitor = await competitor_service.get(db=db, competitor_id=competitor_id, user_id=user_id)
     if not competitor:
         raise HTTPException(status_code=404, detail="Competitor not found")
     return competitor
@@ -74,9 +74,10 @@ async def get_competitor(
 async def delete_competitor(
     competitor_id: UUID,
     db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_optional),
 ):
     """Delete a competitor."""
-    success = await competitor_service.delete(db=db, competitor_id=competitor_id, user_id=TEMP_USER_ID)
+    success = await competitor_service.delete(db=db, competitor_id=competitor_id, user_id=user_id)
     if not success:
         raise HTTPException(status_code=404, detail="Competitor not found")
     return
@@ -85,17 +86,19 @@ async def delete_competitor(
 async def get_competitor_actions(
     competitor_id: UUID,
     db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_optional),
 ):
     """Get recent actions for a specific competitor."""
-    return await competitor_service.get_actions(db=db, competitor_id=competitor_id, user_id=TEMP_USER_ID)
+    return await competitor_service.get_actions(db=db, competitor_id=competitor_id, user_id=user_id)
 
 @router.post("/{competitor_id}/scan", response_model=dict)
 async def force_scan_competitor(
     competitor_id: UUID,
     db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_optional),
 ):
     """Manually trigger a scan for a competitor."""
-    result = await competitor_service.scan_competitor(db=db, competitor_id=competitor_id, user_id=TEMP_USER_ID)
+    result = await competitor_service.scan_competitor(db=db, competitor_id=competitor_id, user_id=user_id)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return result
@@ -103,6 +106,7 @@ async def force_scan_competitor(
 @router.get("/insights", response_model=dict)
 async def get_competitor_insights(
     db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_optional),
 ):
     """Get analysis and insights about competitors."""
-    return await competitor_service.get_insights(db=db, user_id=TEMP_USER_ID)
+    return await competitor_service.get_insights(db=db, user_id=user_id)

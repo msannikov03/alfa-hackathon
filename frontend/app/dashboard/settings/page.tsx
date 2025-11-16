@@ -18,14 +18,14 @@ export default function SettingsPage() {
 
     const { data: context, isLoading: isLoadingContext } = useQuery({
         queryKey: ["businessContext"],
-        queryFn: () => api.get("/v1/legal/business-context").then(res => {
+        queryFn: () => api.get("/legal/business-context").then(res => {
             setRawDescription(res.data.raw_description);
             return res.data;
         }),
     });
 
     const updateContextMutation = useMutation({
-        mutationFn: (description: string) => api.post("/v1/legal/business-context", { raw_description: description }),
+        mutationFn: (description: string) => api.post("/legal/business-context", { raw_description: description }),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["businessContext"] }),
     });
 

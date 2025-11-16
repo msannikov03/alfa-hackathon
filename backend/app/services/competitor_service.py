@@ -55,17 +55,30 @@ class CompetitorService:
 
     async def scan_competitor(self, db: AsyncSession, competitor_id: UUID, user_id: int) -> dict:
         competitor = await self.get(db, competitor_id, user_id)
-        if not competitor or not competitor.website_url:
-            return {"error": "Competitor not found or has no URL"}
+        if not competitor:
+            return {"error": "Competitor not found"}
 
-        # 1. Scrape the content from the URL
-        logger.info(f"Scraping URL: {competitor.website_url}")
-        content = await scraping_service.fetch_url_content(competitor.website_url)
-        if not content:
-            return {"error": "Failed to fetch content from URL"}
-        
-        # Truncate content to avoid exceeding LLM token limits
-        content = content[:12000]
+        content_parts = []
+
+        # 1. Scrape website content if URL exists
+        if competitor.website_url:
+            logger.info(f"Scraping website: {competitor.website_url}")
+            website_content = await scraping_service.fetch_url_content(competitor.website_url)
+            if website_content:
+                content_parts.append(f"=== Website Content ===\n{website_content[:6000]}")
+
+        # 2. Scrape Telegram channel if specified
+        if competitor.telegram_channel:
+            logger.info(f"Scraping Telegram channel: {competitor.telegram_channel}")
+            telegram_content = await scraping_service.fetch_telegram_channel_content(competitor.telegram_channel)
+            if telegram_content:
+                content_parts.append(f"=== Telegram Channel Posts ===\n{telegram_content[:6000]}")
+
+        # 3. Check if we have any content
+        if not content_parts:
+            return {"error": "Failed to fetch content from any source (website or Telegram)"}
+
+        content = "\n\n".join(content_parts)[:12000]
 
         # 2. Use LLM to analyze the data
         prompt = f"""

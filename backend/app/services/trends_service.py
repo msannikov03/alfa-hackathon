@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func, desc
 import pandas as pd
 
-from app.models import FinancialTransaction, CompetitorAction, LegalUpdate, Competitor
+from app.models import FinancialTransaction, CompetitorAction, LegalUpdate, Competitor, MarketTrend
 from app.services.llm_service import llm_service
 
 logger = logging.getLogger(__name__)
@@ -63,9 +63,28 @@ class TrendsService:
         
         # 3. --- Call LLM ---
         response_str = await llm_service._call_llm([{"role": "user", "content": prompt}])
-        
+
         try:
             trends = json.loads(response_str)
+
+            # 4. --- Persist trends to database ---
+            if isinstance(trends, list):
+                for trend_data in trends:
+                    market_trend = MarketTrend(
+                        user_id=user_id,
+                        title=trend_data.get('title', 'Untitled Trend'),
+                        insight_type=trend_data.get('insight_type', 'General'),
+                        observation=trend_data.get('observation', ''),
+                        recommendation_action=trend_data.get('recommendation', {}).get('action', ''),
+                        recommendation_justification=trend_data.get('recommendation', {}).get('justification', ''),
+                        strength_score=0.8,  # Default confidence
+                        category='strategic'
+                    )
+                    db.add(market_trend)
+
+                await db.commit()
+                logger.info(f"Persisted {len(trends)} trends to database for user {user_id}")
+
             return trends
         except json.JSONDecodeError:
             logger.error(f"Failed to decode trends JSON from LLM: {response_str}")

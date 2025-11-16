@@ -11,11 +11,10 @@ import logging
 
 from app.database import get_db
 from app.services.finance_service import finance_service
+from app.api.auth import get_current_user_optional
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-TEMP_USER_ID = 1
 
 # Pydantic models
 class CashFlowPrediction(BaseModel):
@@ -57,7 +56,8 @@ async def create_forecast_from_csv(
     current_balance: float = Form(...),
     mapping: str = Form(...), # JSON string of the mapping
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_optional),
 ):
     """
     Takes the uploaded file and the confirmed mapping, stores the transactions,
@@ -66,12 +66,12 @@ async def create_forecast_from_csv(
     try:
         mapping_dict = json.loads(mapping)
         content = await file.read()
-        
+
         # Store transactions
-        await finance_service.store_transactions_from_csv(db, TEMP_USER_ID, content, mapping_dict)
-        
+        await finance_service.store_transactions_from_csv(db, user_id, content, mapping_dict)
+
         # Create forecast
-        result = await finance_service.create_forecast(db, TEMP_USER_ID, current_balance)
+        result = await finance_service.create_forecast(db, user_id, current_balance)
         return result
 
     except Exception as e:
@@ -81,12 +81,13 @@ async def create_forecast_from_csv(
 
 @router.get("/forecast", response_model=CashFlowPrediction)
 async def get_latest_forecast(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_optional),
 ):
     """
     Retrieves the latest cash flow forecast for the user.
     """
-    forecast = await finance_service.get_latest_forecast(db, TEMP_USER_ID)
+    forecast = await finance_service.get_latest_forecast(db, user_id)
     if not forecast:
         raise HTTPException(status_code=404, detail="No forecast found. Please upload data and generate one.")
     return forecast

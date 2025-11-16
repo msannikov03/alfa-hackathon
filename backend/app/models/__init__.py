@@ -8,6 +8,8 @@ from .business_context import BusinessContext
 from .legal_update import LegalUpdate
 from .processed_article import ProcessedArticle
 from .finance import FinancialTransaction, CashFlowPrediction
+from .market_trend import MarketTrend
+from .compliance_alert import ComplianceAlert
 
 __all__ = [
     "User",
@@ -22,4 +24,6 @@ __all__ = [
     "ProcessedArticle",
     "FinancialTransaction",
     "CashFlowPrediction",
+    "MarketTrend",
+    "ComplianceAlert",
 ]

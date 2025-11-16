@@ -42,7 +42,7 @@ export default function TrendsPage() {
 
     const { data: trends, isLoading, isError, refetch } = useQuery({
         queryKey: ["trends"],
-        queryFn: () => api.get("/v1/trends").then(res => res.data),
+        queryFn: () => api.get("/trends").then(res => res.data),
         enabled: false, // Only fetch when the button is clicked
     });
 

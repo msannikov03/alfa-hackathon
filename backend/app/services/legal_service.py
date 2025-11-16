@@ -2,14 +2,16 @@ import asyncio
 import json
 import logging
 import numpy as np
+import feedparser
 from typing import List, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sentence_transformers import SentenceTransformer
 
-from app.models import BusinessContext, LegalUpdate, ProcessedArticle, User
+from app.models import BusinessContext, LegalUpdate, ProcessedArticle, User, ComplianceAlert
 from app.services.llm_service import llm_service
 from app.services.scraping_service import scraping_service
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -101,28 +103,39 @@ class LegalService:
         logger.info("Daily legal scan finished.")
 
     async def _fetch_new_articles(self, db: AsyncSession) -> List[Dict]:
-        # In a real app, this would use a proper RSS parser library
-        # For now, we simulate it via the scraping service
+        """Fetch new articles from RSS feeds using feedparser"""
         all_articles = []
+
         for source_url in LEGAL_NEWS_SOURCES:
-            # This is a simplification. A real RSS parser should be used.
-            # We are just scraping the text from the RSS page itself.
-            content = await scraping_service.fetch_url_content(source_url)
-            if content:
-                # Super simplified parsing logic
-                # This is a placeholder for a real RSS parsing logic
-                # Assuming each "article" is separated by newlines and has a title
-                lines = content.split('\n')
-                for i in range(0, len(lines) - 1, 2):
-                    title = lines[i]
-                    # This is not a real URL, just an identifier
-                    url = f"{source_url}#{hash(title)}"
-                    all_articles.append({"title": title, "url": url, "source": source_url, "summary": lines[i+1]})
+            try:
+                logger.info(f"Fetching RSS feed from: {source_url}")
+                # feedparser.parse works with both local and remote URLs
+                feed = await asyncio.to_thread(feedparser.parse, source_url)
+
+                if feed.bozo and feed.bozo_exception:
+                    logger.warning(f"Error parsing RSS feed {source_url}: {feed.bozo_exception}")
+                    continue
+
+                for entry in feed.entries[:20]:  # Limit to 20 most recent entries
+                    article = {
+                        "title": entry.get('title', 'No Title'),
+                        "url": entry.get('link', entry.get('id', f"{source_url}#{hash(entry.get('title', ''))}")),
+                        "source": source_url,
+                        "summary": entry.get('summary', entry.get('description', ''))
+                    }
+                    all_articles.append(article)
+
+                logger.info(f"Fetched {len(feed.entries)} articles from {source_url}")
+
+            except Exception as e:
+                logger.error(f"Error fetching RSS feed from {source_url}: {e}")
+                continue
 
         # Deduplicate based on URL
         processed_urls = set((await db.execute(select(ProcessedArticle.url))).scalars().all())
         new_articles = [a for a in all_articles if a['url'] not in processed_urls]
-        
+
+        logger.info(f"Found {len(new_articles)} new articles after deduplication")
         return new_articles
 
     async def _process_articles_for_user(self, db: AsyncSession, context: BusinessContext, articles: List[Dict], article_embeddings: np.ndarray):
@@ -173,6 +186,24 @@ class LegalService:
                         details=analysis
                     )
                     db.add(new_update)
+                    await db.flush()  # Flush to get the new_update.id
+
+                    # Create compliance alert for high and medium impact updates
+                    if analysis['impact_level'] in ['High', 'Medium']:
+                        # Calculate due date based on impact level
+                        days_until_due = 7 if analysis['impact_level'] == 'High' else 14
+                        due_date = (datetime.now() + timedelta(days=days_until_due)).date()
+
+                        compliance_alert = ComplianceAlert(
+                            user_id=context.user_id,
+                            legal_update_id=new_update.id,
+                            status='pending',
+                            action_required=f"Review and comply with: {article['title']}",
+                            due_date=due_date
+                        )
+                        db.add(compliance_alert)
+                        logger.info(f"Created compliance alert for user {context.user_id}: {article['title']}")
+
             except (json.JSONDecodeError, KeyError) as e:
                 logger.error(f"Failed to process LLM response for legal scan: {e}")
         

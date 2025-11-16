@@ -4,12 +4,19 @@ Autonomous AI business assistant with Telegram bot, real-time dashboard, and aut
 
 ## Features
 
+### Core Features
 - **🤖 Telegram Bot** - Two modes: Demo (pre-loaded sample data) and Live (your own business)
 - **📊 Real-time Dashboard** - WebSocket-powered live updates and metrics
 - **🧠 Autonomous Actions** - AI makes decisions within configurable thresholds
 - **📋 Morning Briefings** - Automated daily summaries at 6 AM
 - **✅ Approval System** - Review and approve/decline AI actions
 - **💾 Memory & Learning** - ChromaDB vector store for pattern recognition
+
+### Intelligence Features (Phase 2)
+- **🎯 Competitor Monitoring** - Automatic scanning of competitor websites and Telegram channels every 2 hours
+- **⚖️ Legal Compliance Scanner** - Daily RSS feed monitoring for relevant regulations with compliance alerts
+- **💰 Financial Predictor** - AI-powered 7-day cash flow forecasting with CSV upload
+- **📈 Strategic Trends** - Cross-domain analysis identifying opportunities and threats
 
 ## Quick Start
 
@@ -109,8 +116,7 @@ alfa-hackathon/
 ├── docker-compose.yml             # Services config
 ├── start.sh                       # Quick start script
 ├── README.md                      # This file
-├── PROJECT_CONTEXT.md             # For LLMs/developers
-└── DEPLOYMENT.md                  # Raspberry Pi deployment
+└── PROJECT_CONTEXT.md             # For LLMs/developers
 ```
 
 ## Development

@@ -63,7 +63,7 @@ export default function FinancePage() {
 
     const { data: forecastData, refetch: refetchForecast } = useQuery({
         queryKey: ["financeForecast"],
-        queryFn: () => api.get("/v1/finance/forecast").then(res => res.data),
+        queryFn: () => api.get("/finance/forecast").then(res => res.data),
         enabled: false, // Initially disabled
     });
 
@@ -71,7 +71,7 @@ export default function FinancePage() {
         mutationFn: (file: File) => {
             const formData = new FormData();
             formData.append('file', file);
-            return api.post("/v1/finance/upload-csv", formData, {
+            return api.post("/finance/upload-csv", formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
         },
@@ -87,7 +87,7 @@ export default function FinancePage() {
             formData.append('file', file!);
             formData.append('mapping', JSON.stringify(mapping));
             formData.append('current_balance', currentBalance);
-            return api.post("/v1/finance/forecast", formData, {
+            return api.post("/finance/forecast", formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
         },

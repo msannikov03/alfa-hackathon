@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 class UserRegister(BaseModel):
@@ -91,6 +92,31 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         if user is None:
             raise credentials_exception
         return user
+
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security)
+) -> int:
+    """
+    Get current user ID from JWT token, or fall back to demo user (user_id=1) if no token provided.
+    This allows Phase 2 features to work without authentication for demo purposes.
+    """
+    if credentials is None:
+        # No authentication provided, use demo user (user_id=1)
+        logger.info("No authentication provided, using demo user_id=1")
+        return 1
+
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        user_id: int = payload.get("sub")
+        if user_id is None:
+            logger.warning("Invalid token, falling back to demo user_id=1")
+            return 1
+        return user_id
+    except JWTError as e:
+        logger.warning(f"JWT decode error: {e}, falling back to demo user_id=1")
+        return 1
 
 
 @router.post("/register", response_model=Token)
