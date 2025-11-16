@@ -15,90 +15,72 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH
+      - name: Debug - Check secrets are loaded
         run: |
+          echo "Checking if secrets are available..."
+          if [ -z "${{ secrets.PI_HOST }}" ]; then
+            echo "❌ PI_HOST is empty!"
+          else
+            echo "✅ PI_HOST is set (length: ${#PI_HOST})"
+          fi
+          if [ -z "${{ secrets.PI_USER }}" ]; then
+            echo "❌ PI_USER is empty!"
+          else
+            echo "✅ PI_USER is set"
+          fi
+          if [ -z "${{ secrets.PI_SSH_KEY }}" ]; then
+            echo "❌ PI_SSH_KEY is empty!"
+          else
+            echo "✅ PI_SSH_KEY is set"
+          fi
+        env:
+          PI_HOST: ${{ secrets.PI_HOST }}
+
+      - name: Debug - Test DNS resolution
+        run: |
+          echo "Testing DNS resolution..."
+          nslookup ssh.businesslion.me || true
+          dig ssh.businesslion.me || true
+          host ssh.businesslion.me || true
+
+          echo "Testing ping..."
+          ping -c 2 ssh.businesslion.me || true
+
+      - name: Debug - Test SSH connection
+        run: |
+          echo "Setting up SSH key..."
           mkdir -p ~/.ssh
           echo "${{ secrets.PI_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # Force IPv4 and disable strict host key checking for first connection
-          cat >> ~/.ssh/config << EOF
-          Host pi-deploy
-            HostName ${{ secrets.PI_HOST }}
-            User ${{ secrets.PI_USER }}
-            IdentityFile ~/.ssh/deploy_key
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-            AddressFamily inet
-            Port 22
-          EOF
+
+          echo "Testing SSH connection with verbose output..."
+          ssh -vvv -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=10 \
+              ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }} \
+              "echo 'SSH Connection successful!'" || echo "SSH connection failed"
 
       - name: Deploy to Raspberry Pi
-        run: |
-          ssh pi-deploy << 'ENDSSH'
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PI_HOST }}
+          username: ${{ secrets.PI_USER }}
+          key: ${{ secrets.PI_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 30m
+          debug: true
+          script: |
             set -e
-            echo "🚀 Starting deployment to Raspberry Pi..."
-
-            # Navigate to project directory
-            cd ~/alfa-hackathon || { echo "Project directory not found!"; exit 1; }
-
-            # Pull latest changes
-            echo "📥 Pulling latest code from GitHub..."
+            echo "🚀 Starting deployment..."
+            cd ~/alfa-hackathon
             git fetch origin
             git reset --hard origin/main
-
-            # Stop containers
-            echo "🛑 Stopping existing containers..."
             docker compose -f docker-compose.yml -f docker-compose.prod.yml down || true
-
-            # Clean up old images to free space
-            echo "🧹 Cleaning up old Docker images..."
             docker image prune -f || true
-
-            # Build new images
-            echo "🔨 Building Docker images..."
             docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache
-
-            # Start services
-            echo "▶️  Starting services..."
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-            # Wait for services to be healthy
-            echo "⏳ Waiting for services to start..."
             sleep 15
-
-            # Check service health
-            echo "🏥 Checking service health..."
             docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-
-            # Check backend health endpoint
-            echo "🔍 Testing backend health..."
-            for i in {1..10}; do
-              if curl -f http://localhost:8000/health > /dev/null 2>&1; then
-                echo "✅ Backend is healthy!"
-                break
-              fi
-              echo "Waiting for backend... ($i/10)"
-              sleep 3
-            done
-
-            # Show recent logs
-            echo "📋 Recent backend logs:"
-            docker compose logs --tail=20 backend
-
-            echo "✅ Deployment completed successfully!"
-            echo "🌐 App should be available at your Cloudflare domain"
-          ENDSSH
-
-      - name: Deployment notification
-        if: success()
-        run: |
-          echo "✅ Successfully deployed to Raspberry Pi!"
-          echo "Commit: ${{ github.sha }}"
-          echo "Author: ${{ github.actor }}"
-
-      - name: Deployment failed
-        if: failure()
-        run: |
-          echo "❌ Deployment failed!"
-          echo "Check the logs above for details"
-          exit 1
+            echo "✅ Deployment completed!"
