@@ -1,270 +1,360 @@
-# Alfa Business Assistant
-
-Autonomous AI business assistant with Telegram bot, real-time dashboard, and automated decision-making.
-
-## Features
-
-### Core Features
-- **🤖 Telegram Bot** - Two modes: Demo (pre-loaded sample data) and Live (your own business)
-- **📊 Real-time Dashboard** - WebSocket-powered live updates and metrics
-- **🧠 Autonomous Actions** - AI makes decisions within configurable thresholds
-- **📋 Morning Briefings** - Automated daily summaries at 6 AM
-- **✅ Approval System** - Review and approve/decline AI actions
-- **💾 Memory & Learning** - ChromaDB vector store for pattern recognition
-
-### Intelligence Features (Phase 2)
-- **🎯 Competitor Monitoring**
-  - Automatic scanning of websites and Telegram channels every 2 hours
-  - Add/manage competitors via bot or dashboard
-  - AI identifies price changes, promotions, new products
-  - Detailed error handling for blocked/unavailable sites
-- **⚖️ Legal Compliance Scanner**
-  - Daily RSS feed monitoring for relevant regulations
-  - Set business context for personalized legal alerts
-  - Automatic compliance deadlines and action items
-  - Full integration in bot and dashboard
-- **💰 Financial Predictor**
-  - AI-powered 7-day cash flow forecasting
-  - CSV upload via bot or dashboard
-  - Automatic column detection with LLM
-  - Risk analysis and recommendations
-- **📈 Strategic Trends**
-  - Cross-domain analysis (finance + legal + competitors)
-  - Identifies opportunities, threats, and efficiency improvements
-  - Actionable recommendations with importance scoring
-  - Available via bot command and dashboard
-
-## Quick Start
-
-### 1. Get API Keys
-
-**LLM7.io** - Free LLM access:
-- Go to https://token.llm7.io
-- Get your free API token (no payment required)
-
-**Telegram Bot Token**:
-- Open Telegram, search @BotFather
-- Send `/newbot` and follow instructions
-- Copy the token
-
-### 2. Configure & Start
-
-```bash
-# Clone repo
 git clone https://github.com/msannikov03/alfa-hackathon.git
-cd alfa-hackathon
-
-# Add API keys to .env
-nano .env
-# Set LLM7_API_KEY and TELEGRAM_BOT_TOKEN
-
-# Start everything
-./start.sh
-```
-
-### 3. Access
-
-**Dashboard:** http://localhost:3000/login
-- Demo: `demo_admin` / `demo123` (sample business data)
-- Admin: `admin` / `admin123` (clean slate)
-
-**Telegram Bot:**
-- Open Telegram, find your bot
-- Send `/start`
-- Choose **Demo Mode** to see sample data
-- Or **Live Mode** to create your own business
-
-## Bot Commands
-
-### Core Commands
-```
-/start        - Choose Demo or Live mode
-/briefing     - Get today's business briefing
-/stats        - View statistics and metrics
-/approve      - Check pending approvals
-/setup        - Configure your business profile
-/setpassword  - Set password for dashboard access
-/changemode   - Switch between Demo/Live modes
-/help         - Show all commands
-```
-
-### Intelligence Features
-```
-🎯 Competitor Monitoring:
-/competitors      - List all tracked competitors
-/addcompetitor    - Add new competitor (wizard)
-/scancompetitors  - Scan all competitors now
-
-⚖️ Legal & Compliance:
-/legal        - View recent legal updates
-/setcontext   - Set business context for monitoring
-/compliance   - View compliance alerts and deadlines
-
-💰 Financial Analytics:
-/forecast     - View 7-day cash flow forecast
-📎 Send CSV   - Upload bank statement for analysis
-
-📈 Strategic Intelligence:
-/trends       - View cross-domain strategic trends
-```
-
-## Demo Mode - Rich Sample Data
-
-**Why Demo Data?** Setting up a complete business intelligence system takes time. Our demo mode lets you see the full value immediately - every feature, every insight, working out of the box.
-
-Pre-loaded with complete **Demo Coffee Shop** business:
-
-**Core Features:**
-- ✅ 6 autonomous actions (inventory, staffing, marketing, pricing)
-- ✅ 3 pending approvals to test workflow
-- ✅ Full business context (₽75K/day revenue, 150 customers, 8 staff)
-- ✅ Today's AI-generated briefing with actionable insights
-- ✅ 30 days of financial transaction history
-
-**Phase 2 Intelligence:**
-- ✅ 4 real competitors (Coffee House, Starbucks, Шоколадница, Кофемания)
-- ✅ 8 competitor actions tracked (price changes, promotions, new products)
-- ✅ 4 legal updates with impact analysis (VAT increase, online cash register rules, etc.)
-- ✅ 3 compliance alerts with due dates (urgent tasks you need to complete)
-- ✅ 7-day cash flow forecast (₽450K → ₽900K+ projected)
-- ✅ 5 strategic market trends (opportunities, threats, efficiency improvements)
-- ✅ Complete briefing report ready to view
-
-**Perfect For:**
-- 🎯 Demos and presentations - show real value instantly
-- 🧪 Testing all features without manual data entry
-- 📊 Understanding what the system can do for your business
-- 🚀 Getting started quickly in production (just switch to Live mode when ready)
-
-All data is realistic, interconnected, and demonstrates the full power of the AI assistant.
-
-## Tech Stack
-
-| Component | Technology |
-|-----------|-----------|
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind v4 |
-| Backend | FastAPI, Python 3.11, SQLAlchemy (async) |
-| Database | PostgreSQL 15 |
-| LLM | LLM7.io API (Free gateway to multiple models) |
-| Vector Store | ChromaDB with embeddings |
-| Bot | python-telegram-bot 21.7 |
-| Real-time | WebSocket |
-| Deployment | Docker Compose |
-
-## Project Structure
-
-```
-alfa-hackathon/
-├── backend/
-│   ├── seed_demo_data.py          # Creates demo business data
-│   ├── app/
-│   │   ├── api/                   # REST API endpoints
-│   │   ├── telegram/bot.py        # Telegram bot with demo/live modes
-│   │   ├── models/                # Database models
-│   │   ├── services/              # LLM, memory services
-│   │   └── agents/                # Briefing agent
-│   └── requirements.txt
-├── frontend/
-│   ├── app/
-│   │   ├── dashboard/page.tsx     # Real-time dashboard
-│   │   ├── login/page.tsx         # Login page
-│   │   └── tg-app/page.tsx        # Telegram Mini App
-│   └── components/
-├── .env                           # Your config (gitignored)
-├── .env.example                   # Template
-├── docker-compose.yml             # Services config
-├── start.sh                       # Quick start script
-├── README.md                      # This file
-└── PROJECT_CONTEXT.md             # For LLMs/developers
-```
-
-## Development
-
-```bash
-# Start services
-./start.sh
-
-# View logs
 docker compose logs -f backend
-
-# Restart after code changes
 docker compose restart backend
-
-# Stop everything
 docker compose down
-
-# Fresh start (deletes data)
 docker compose down -v
-./start.sh
-```
-
-## Environment Variables
-
-Key variables in `.env`:
-
-```env
-# Required
-LLM7_API_KEY=your_token_here...        # Free token from https://token.llm7.io
-TELEGRAM_BOT_TOKEN=123456:ABC...       # From @BotFather
-
-# Database (use defaults for Docker)
-POSTGRES_PASSWORD=alfa_password_change_me
-
-# Webapp URL
-TELEGRAM_WEBAPP_URL=http://localhost:3000/tg-app  # Local
-# TELEGRAM_WEBAPP_URL=https://yourdomain.com/tg-app  # Production
-
-# Features
-ENABLE_AUTONOMOUS_ACTIONS=true
-MORNING_BRIEFING_TIME=06:00
-DECISION_THRESHOLD_AMOUNT=10000        # Auto-approve under ₽10K
-```
-
-## API Endpoints
-
-**Base URL:** http://localhost:8000
-
-**Interactive docs:** http://localhost:8000/docs
-
-Key endpoints:
-- `GET /api/v1/briefing/today?user_id=1` - Today's briefing
-- `GET /api/v1/actions/recent?user_id=1` - Recent actions
-- `GET /api/v1/actions/pending?user_id=1` - Pending approvals
-- `POST /api/v1/actions/approve/{action_id}` - Approve action
-- `GET /api/v1/metrics/performance?user_id=1` - Metrics
-- `WS /ws?user_id=1` - WebSocket for real-time updates
-
-## Troubleshooting
-
-**Bot not responding:**
-```bash
 docker compose logs backend | grep "Telegram"
 docker compose restart backend
-```
-
-**Seed script failed:**
-```bash
 docker exec alfa_backend python seed_demo_data.py
-```
-
-**Database issues:**
-```bash
-# Reset database
 docker compose down -v
-./start.sh
-```
+# Alfa Business Copilot (dev01 branch)
 
-## Deployment
+Интеллектуальный Copilot-портал для клиентов микробизнеса: Telegram‑бот + веб‑панель + мини‑приложение (Telegram WebApp) для постановки разнотипных бизнес‑вопросов к LLM и получения структурированных, контекстных ответов и автономных подсказок.
 
-See `DEPLOYMENT.md` for complete Raspberry Pi deployment with:
-- Cloudflare Tunnel setup (bypass firewall)
-- CI/CD auto-deploy on git push
-- Production configuration
-
-## License
-
-MIT License
+Участвует в [Alfa Future Hackathon 2025](https://alfabank.ru/alfafuture/event/hack/?platformId=telegram_cpm-post_hr-marketing_alfa-budushchee-hakaton-25_Romancev768_10-2025&utm_campaign=hr-marketing_alfa-budushchee-hakaton-25&utm_medium=cpm-post&utm_source=telegram&utm_content=Romancev768&utm_term=10-2025).
 
 ---
 
-**Built for Alfa Hackathon 2025** - Autonomous AI that works while you sleep 🌙
+## 1. Замысел (Vision)
+
+Создать доступный “Business Copilot” для микробизнеса, который:
+- Позволяет владельцу/представителю бизнеса задавать вопросы в привычном канале (Telegram) без входа в сложные ERP/BI системы.  
+- Даёт качественные, контекстные ответы: финансы, операции, маркетинг, конкуренты, комплаенс, стратегические тренды.  
+- Автоматически формирует ежедневные “брифинги” и рекомендации, умеет инициировать автономные действия в безопасных пределах (threshold).  
+- Предоставляет демо‑режим с насыщенными данными для мгновенного понимания ценности.  
+
+---
+
+## 2. Соответствие текущего состояния репозитория (dev01) требованиям Copilot-портала
+
+| Требование (High-Level) | Статус | Реализация / Артефакты | Комментарий |
+|-------------------------|--------|------------------------|-------------|
+| Telegram бот (вопросы / ответы / команды) | Реализовано (расширено) | `backend/app/telegram/bot.py`, команды из README | Есть режимы Demo/Live, множество бизнес-команд + модульное расширение. |
+| Портал / Dashboard (просмотр метрик, действий, брифингов) | Реализовано | `frontend/app/dashboard/page.tsx` | Отображение реальных данных + WebSocket обновления. |
+| Мини-приложение Telegram WebApp | Реализовано | `frontend/app/tg-app/page.tsx` | Интеграция `TELEGRAM_WEBAPP_URL`. |
+| Вопросы к LLM (Q&A основа) | Частично | `services` (LLM7 API usage, embeddings/ChromaDB), бот echo/агенты | Нужна глубже формализованная цепочка: классификация, retrieval, формат ответа. |
+| Автономные действия с approval threshold | Реализовано | ENV `DECISION_THRESHOLD_AMOUNT`, endpoints `/api/v1/actions/*` | Логика принятия решений и подтверждений присутствует. |
+| Утренние брифинги / авто-отчёт | Реализовано | `MORNING_BRIEFING_TIME`, агент брифинга (`agents/`) | Генерация обзора дня (demo data показывает). |
+| Память / векторное хранилище | Реализовано | ChromaDB интеграция (указано в README), embeddings | Требуется документировать схему embeddings + расширить RAG для Q&A. |
+| Конкурентный мониторинг | Реализовано (демо + фаза 2) | Демо seed (`seed_demo_data.py`) + команды `/competitors` | В проде можно расширить сканер (план). |
+| Финансовый прогноз | Реализовано (демо) | `/forecast` команда + CSV загрузка (LLM колонок) | Нужны реальные модели и валидация данных. |
+| Legal/Compliance мониторинг | Реализовано (демо) | Команды `/legal`, `/compliance`, seed данных | В проде потребуется подключение внешних RSS/регистров. |
+| Стратегические тренды (cross-domain) | Реализовано (демо) | `/trends` | Усилить аналитический стек (фактический синтез вместо статических демо). |
+| Demo Mode (богатые данные) | Реализовано | `seed_demo_data.py` (большой объём), README секция | Сильная сторона для презентаций. |
+| Production deploy (Docker / Raspberry Pi / CI hints) | Частично | `docker-compose.yml`, `docker-compose.prod.yml`, `DEPLOYMENT.md` | Есть базовая прод-конфигурация, можно усилить CI/CD и секреты. |
+| Тесты / автотесты | Отсутствует | (нет `tests/` или workflow для тестов) | Требуется создать юнит / интеграционные / e2e тесты. |
+| Роли / вклад | Частично (в README пока нет) | Структура модулей намекает на разделение | Добавлено ниже. |
+| README: требования к запуску | Есть, нуждается в адаптации под Copilot | Команды, ENV, быстрый старт | Расширено ниже. |
+| Структурированные ответы LLM (actionable) | Частично | Сейчас ответы более системные (брифинг, отчет), но Q&A формат не стандартизирован | Добавить ответный шаблон (Problem / Analysis / Recommendation / Next Steps). |
+| Контекст бизнеса (профиль) | Частично | Demo бизнес контекст, команды `/setup` | Нужно хранение и обновление бизнес-профиля пользователя (таблица, endpoints). |
+
+---
+
+## 3. Сильные стороны проекта
+
+1. Богатый DEMO MODE: сразу демонстрирует ценность (конкуренты, финансы, комплаенс, тренды).  
+2. Мульти-интерфейс: Telegram Bot + Web Dashboard + Telegram Mini App.  
+3. Реальное время: WebSocket обновления метрик и действий.  
+4. Автономность с контролем: порог принятия решений + approval workflow.  
+5. Архитектурная сегментация: `agents/`, `services/`, `models/` – легко масштабировать.  
+6. Насыщенный seed скрипт (реалистичная взаимосвязь данных).  
+7. Гибкая конфигурация через `.env` (включая включение автономных действий).  
+8. Расширяемость LLM: поддержка внешнего API (LLM7), плюс векторная память (ChromaDB) для будущего Retrieval-Augmented Generation (RAG).  
+9. Production readiness (базовый): docker-compose.prod + DEPLOYMENT.md (включая Cloudflare Tunnel).  
+
+---
+
+## 4. Пробелы и рекомендации (Gap Analysis)
+
+| Gap | Рекомендация | Приоритет |
+|-----|--------------|-----------|
+| Отсутствуют тесты | Добавить `tests/` с pytest + async тесты для API + mock Telegram | Высокий |
+| Нет формального Q&A pipeline | Ввести модуль: классификация темы → извлечение релевантного контекста (RAG) → шаблон ответа | Высокий |
+| Бизнес-профиль пользователя частично | Создать модель `BusinessProfile`, endpoints CRUD, связывать с ответами LLM | Высокий |
+| Нет метрик качества ответов | Собирать feedback (thumbs up/down + причины), хранить в БД | Средний |
+| Нет auto CI (lint/test) | GitHub Actions: `backend-tests.yml`, `frontend-build.yml` | Средний |
+| Безопасность токенов | Секреты GitHub / .env.example обновить best practices | Средний |
+| Сквозная авторизация Web ↔ Bot | Единый токен привязки Telegram user_id ↔ dashboard user | Средний |
+| Отсутствует рольная модель доступа | Ввести роли: owner / manager / viewer (RBAC таблица) | Низкий |
+| Отсутствует load/performance тест | K6/Gatling сценарии для WebSocket + LLM endpoints | Низкий |
+
+---
+
+## 5. Требования к запуску
+
+### Системные
+- Docker 24+  
+- Docker Compose v2  
+- Python 3.11 (для локальной разработки backend без контейнера)  
+- Node.js 20+ (для локальной разработки frontend)  
+- Telegram Bot Token (через @BotFather)  
+- LLM7 API Key (https://token.llm7.io)
+
+### Быстрый старт (Dev)
+
+```bash
+git clone https://github.com/msannikov03/alfa-hackathon.git
+cd alfa-hackathon
+cp .env.example .env
+# Отредактируйте .env и задайте LLM7_API_KEY, TELEGRAM_BOT_TOKEN, POSTGRES_PASSWORD
+./start.sh
+# Dashboard: http://localhost:3000/login
+# Bot: /start в Telegram
+```
+
+### Продакшн (базовый)
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+# Настроить TELEGRAM_WEBAPP_URL на публичный домен
+# Использовать секреты через Docker / оркестратор (Swarm/K8s)
+```
+
+### Ключевые ENV (минимум)
+
+```env
+LLM7_API_KEY=...
+TELEGRAM_BOT_TOKEN=...
+POSTGRES_PASSWORD=...
+ENABLE_AUTONOMOUS_ACTIONS=true
+DECISION_THRESHOLD_AMOUNT=10000
+MORNING_BRIEFING_TIME=06:00
+TELEGRAM_WEBAPP_URL=https://yourdomain.com/tg-app
+```
+
+---
+
+## 6. Архитектура (высокоуровнево)
+
+```
+Telegram User ─┬─> Telegram Bot (Commands, Q&A)
+               │
+               ├─> WebApp (Dashboard, Metrics, Approvals, Trends)
+               │
+               └─> MiniApp (Telegram WebApp UI subset)
+
+Backend (FastAPI):
+  - api/ (REST + WebSocket)
+  - services/ (LLM, memory, actions)
+  - agents/ (Briefing, Intelligence synthesis)
+  - models/ (SQLAlchemy async)
+  - telegram/ (bot orchestration)
+
+Data:
+  - PostgreSQL (business data, actions, profiles)
+  - ChromaDB (embeddings / semantic memory)
+
+LLM Layer:
+  - LLM7 API (multi-model gateway)
+  - Planned: RAG pipeline (retrieval + answer template)
+```
+
+---
+
+## 7. Каналы и ключевые функции
+
+### Мульти-интерфейсы
+- **🤖 Telegram Bot** — Demo и Live режимы, быстрые ответы, CSV загрузки.  
+- **📊 Real-time Dashboard** — Next.js 16 + WebSocket обновления, KPI и approvals.  
+- **🧩 Telegram Mini App** — обработка сценариев, требующих UX внутри Telegram.  
+
+### Команды Telegram
+
+```
+/start        - выбор режима Demo/Live
+/briefing     - утренний брифинг
+/stats        - метрики и KPI
+/approve      - список действий на подтверждение
+/setup        - настройка бизнес-профиля
+/setpassword  - пароль для Dashboard
+/changemode   - переключение режимов
+/help         - список команд
+
+🎯 Конкуренты:
+/competitors, /addcompetitor, /scancompetitors
+
+⚖️ Legal / Compliance:
+/legal, /setcontext, /compliance
+
+💰 Финансы:
+/forecast, загрузка CSV в чат
+
+📈 Стратегия:
+/trends
+```
+
+### Demo Mode — Rich Sample Data
+- 6 автономных действий + 3 ожидания approval.
+- Реалистичные KPI (₽75K/день, 150 клиентов, 8 сотрудников).
+- 30 дней финансовой истории, 4 конкурента, 4 legal апдейта, 3 compliance задач, 5 трендов.
+- Готовые сценарии для питча “из коробки”.
+
+---
+
+## 8. Роли и вклад (предлагаемая структура)
+
+| Роль | Ответственность | Текущие артефакты | Дальнейшие шаги |
+|------|-----------------|-------------------|-----------------|
+| Product Owner | Формализация use cases, Demo сценарии | README Demo Mode, `seed_demo_data.py` | User feedback loop |
+| Backend Engineer | API, модели, Telegram bot, agents | `app/*`, endpoints, seed | Внедрить тесты, RAG pipeline |
+| AI Engineer | LLM интеграция, память, улучшение ответов | `services/` (LLM/embeddings) | Классификация вопросов, answer templating |
+| Frontend Engineer | Dashboard / MiniApp / Auth | `frontend/app/*` | Q&A UI, feedback widget |
+| DevOps / Infra | Docker, prod compose, deployment guide | `docker-compose*.yml`, `DEPLOYMENT.md` | GitHub Actions, secrets management |
+| Data Analyst (будущее) | Валидация финансовых/трендовых моделей | Demo metrics | Реальные прогнозы, KPI расчёты |
+| QA / Test Engineer | Автотесты, нагрузка | (нет) | Pytest, Playwright, K6 |
+
+---
+
+## 9. Тестирование
+
+### Текущее состояние
+- В репозитории нет `tests/`, нет CI workflows — это зафиксировано как gap и приоритезировано.
+
+### План внедрения
+1. **Unit Tests (pytest + asyncio)**: `services`, `agents`, `models` с mock Telegram.  
+2. **Integration Tests**: REST и WebSocket (`/api/v1/briefing/today`, `/api/v1/actions/*`).  
+3. **Telegram Bot Tests**: тестовый `python-telegram-bot` Application + эмуляция update.  
+4. **Frontend E2E**: Playwright сценарии login → dashboard → approve action.  
+5. **Performance**: K6 для WebSocket и LLM маршрутов.  
+6. **LLM Quality Eval**: эталонные вопросы + проверка шаблона ответа (regex/JSON Schema).  
+
+### GitHub Actions (предложение)
+- `.github/workflows/backend-tests.yml`
+- `.github/workflows/frontend-build.yml`
+- `.github/workflows/e2e.yml`
+
+---
+
+## 10. Шаблон структурированного ответа Copilot (предложение)
+
+Для повышения ценности ответов Q&A внедрить формат:
+
+```
+[Question Understanding]
+[Business Context Applied]
+[Analysis]
+[Recommendation - prioritized list]
+[Metrics/KPI to Track]
+[Next Steps]
+[Potential Risks]
+[Follow-up Suggestions]
+```
+
+Генерировать JSON + текст: позволяет отображать в боте и хранить в БД.
+
+---
+
+## 11. Улучшения для полноценного Copilot
+
+| Функция | Описание | Benefit |
+|---------|----------|---------|
+| Question Classifier | Определяет домен: Finance / HR / Ops / Marketing / Legal / Strategy | Точная выборка контекста |
+| RAG Pipeline | Извлечение бизнес-профиля + демо/реальные данные + внешние источники | Более релевантные ответы |
+| Feedback Loop | Кнопки 👍 / 👎 + причина | Улучшение моделей выбора контекста |
+| Adaptive Autonomy | Динамическая коррекция threshold на основе прошлых решений | Контролируемый риск |
+| Business Profile Editor | Wizard в боте/вебе для атрибутов бизнеса | Персонализация ответов |
+| Multi-LLM Orchestrator | Выбор модели: быстрый/аналитический/дешёвый | Оптимизация стоимости |
+| Audit Log | Журнал всех AI действий и рекомендаций | Прозрачность и комплаенс |
+| Role-Based Access | Owner / Manager / Viewer | Безопасность |
+
+---
+
+## 12. Безопасность и комплаенс (базово)
+
+| Аспект | Текущее | Рекомендация |
+|--------|---------|--------------|
+| Секреты | `.env` локально | GitHub Secrets + Vault/KMS |
+| Логи | `docker logs` | Централизованный сбор (EFK/Vector) |
+| Аудит действий | Частично в данных | Таблица `audit_logs` (user_id, action, timestamp) |
+| Политика PII | Не формализована | Документировать хранение Telegram user_id |
+| Rate Limiting | Отсутствует | Ограничения на LLM вызовы (per user/day) |
+| Резервное копирование | Не указано | Snapshot PostgreSQL / cron |
+
+---
+
+## 13. CI/CD (план)
+
+1. Lint & Type Check (ESLint / mypy).  
+2. Backend Tests (pytest).  
+3. Frontend Build + Playwright smoke.  
+4. Docker build & scan (Trivy).  
+5. Deploy (prod) через workflow при push в `main` / релизный tag.  
+
+---
+
+## 14. Команды разработки и отладка
+
+```bash
+# Запуск всех сервисов
+./start.sh
+
+# Просмотр логов backend
+docker compose logs -f backend
+
+# Перезапуск backend после изменений
+docker compose restart backend
+
+# Остановка
+docker compose down
+
+# Полный ресет (включая данные)
+
+./start.sh
+
+# Тестовый прогон seed-скрипта в контейнере
+docker exec alfa_backend python seed_demo_data.py
+```
+
+**Troubleshooting**
+- Бот не отвечает → `docker compose logs backend | Select-String "Telegram"`.  
+- База “упала” → `docker compose down -v && ./start.sh`.  
+- WebSocket не коннектится → проверить `WS /ws?user_id=<id>` в `http://localhost:8000/docs`.  
+
+---
+
+## 15. API & интеграции
+
+- **Base URL:** `http://localhost:8000`
+- **Swagger / ReDoc:** `http://localhost:8000/docs`
+- **Ключевые endpoints:**
+  - `GET /api/v1/briefing/today?user_id=1`
+  - `GET /api/v1/actions/recent?user_id=1`
+  - `GET /api/v1/actions/pending?user_id=1`
+  - `POST /api/v1/actions/approve/{action_id}`
+  - `GET /api/v1/metrics/performance?user_id=1`
+  - `WS /ws?user_id=1` — real-time обновления
+
+---
+
+## 16. Лицензия и участие
+
+### Лицензия
+MIT — упрощает вклад и быстрый рост экосистемы.
+
+### Как внести вклад (Contributing)
+1. Форк / ветка `feature/<short-name>`.  
+2. Добавить тесты для новых модулей.  
+3. Обновить `PROJECT_CONTEXT.md` при расширении доменных данных.  
+4. Pull Request: Purpose / Implementation / Tests / Impact.  
+5. Code Review: минимум один апрув.  
+
+---
+
+## 17. Итоговая оценка
+
+Проект в ветке `dev01` демонстрирует зрелый каркас Copilot‑системы:
+- Широкая функциональная поверхность (брифинги, конкуренты, комплаенс, финансы, действия).
+- Реальное время и мультиканальность (Bot + Dashboard + MiniApp).
+- Готовность к расширению в сторону полноценных Q&A (есть память, LLM интеграция).
+- Сильная демонстрационная среда для питчинга и быстрого UX понимания.
+
+Ключевые следующие шаги для превращения в “полноценный Copilot”:
+1. Формализация Q&A цепочки (классификация → retrieval → шаблон ответа).  
+2. Введение тестового покрытия + CI для стабильности.  
+3. Хранение бизнес-профиля и его персонализация в ответах.  
+4. Feedback и качество ответов (precision / satisfaction).  
+5. Расширение безопасных автономных действий (адаптивный threshold).  
+
+---
+
+**Built for Alfa Hackathon 2025 — “Copilot, который работает пока вы спите”.** 🌙
