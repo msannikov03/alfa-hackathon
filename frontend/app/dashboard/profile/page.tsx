@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, Users, MapPin, Clock, TrendingUp, Sparkles, Bot } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
 
 export default function ProfilePage() {
-  const [userId, setUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setUserId(localStorage.getItem("user_id"));
-  }, []);
+  const [userId] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    return localStorage.getItem("user_id");
+  });
 
   const { data: profile } = useQuery({
     queryKey: ["userProfile", userId],

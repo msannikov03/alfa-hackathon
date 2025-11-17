@@ -5,7 +5,6 @@ import { TrendingUp, TrendingDown, Bell, CheckCircle, AlertCircle, Clock } from 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import KPICard from "@/components/dashboard/kpi-card";
 import ActivityFeed from "@/components/dashboard/activity-feed";
 import AutonomousActions from "@/components/dashboard/autonomous-actions";

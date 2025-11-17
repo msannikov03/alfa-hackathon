@@ -284,7 +284,7 @@ export default function CompetitorsPage() {
           {!isLoadingCompetitors && competitors?.length === 0 && (
             <Card className="p-6 text-center text-muted-foreground">
               <p>
-                Конкуренты еще не добавлены. Нажмите "Добавить конкурента" для начала отслеживания конкурентов.
+                Конкуренты еще не добавлены. Нажмите «Добавить конкурента» для начала отслеживания конкурентов.
               </p>
             </Card>
           )}
@@ -330,7 +330,7 @@ export default function CompetitorsPage() {
                 </div>
               ) : (
                 <div className="pt-4 border-t text-sm text-muted-foreground text-center py-3 bg-muted rounded">
-                  Нажмите "Сканировать" для анализа этого конкурента
+                  Нажмите «Сканировать» для анализа этого конкурента
                 </div>
               )}
             </Card>

@@ -91,7 +91,7 @@ export default function TrendsPage() {
             <InsightTypeIcon type={trend.insight_type} />
           </div>
           <p className="text-sm text-muted-foreground mb-4">
-            "{trend.observation}"
+            &laquo;{trend.observation}&raquo;
           </p>
           <div className="space-y-2 pt-4 border-t">
             <h4 className="font-semibold text-sm text-foreground">Рекомендация:</h4>

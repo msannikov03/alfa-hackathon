@@ -5,10 +5,11 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
-    "lint": "next lint",
+    "lint": "eslint . --max-warnings=0",
     "start": "next start"
   },
   "dependencies": {
+    "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "latest",
     "@tanstack/react-query": "latest",
     "@tanstack/react-query-devtools": "latest",
@@ -19,6 +20,7 @@
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.454.0",
     "next": "16.0.1",
+    "next-themes": "^0.4.6",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "recharts": "latest",

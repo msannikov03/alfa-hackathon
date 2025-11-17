@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface TelegramWebApp {
   ready: () => void;
@@ -63,6 +63,42 @@ export default function TelegramApp() {
   const [pendingActions, setPendingActions] = useState<Action[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const tgRef = useRef<TelegramWebApp | null>(null);
+
+  const fetchData = useCallback(
+    async (webapp?: TelegramWebApp | null) => {
+      try {
+        setLoading(true);
+
+        const source = webapp ?? tgRef.current;
+        // Get user ID from Telegram (in production, this would be from the auth)
+        const userId = source?.initDataUnsafe.user?.id || 1;
+
+        const actionsRes = await fetch(`/api/v1/actions/recent?user_id=${userId}&limit=10`);
+        if (actionsRes.ok) {
+          const actionsData = await actionsRes.json();
+          setActions(actionsData);
+        }
+
+        const pendingRes = await fetch(`/api/v1/actions/pending?user_id=${userId}`);
+        if (pendingRes.ok) {
+          const pendingData = await pendingRes.json();
+          setPendingActions(pendingData);
+        }
+
+        const metricsRes = await fetch(`/api/v1/metrics/performance?user_id=${userId}`);
+        if (metricsRes.ok) {
+          const metricsData = await metricsRes.json();
+          setMetrics(metricsData);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     // Initialize Telegram WebApp
@@ -71,49 +107,16 @@ export default function TelegramApp() {
       webapp.ready();
       webapp.expand();
 
+      tgRef.current = webapp;
       setTg(webapp);
       setUser(webapp.initDataUnsafe.user);
 
       // Fetch data
-      fetchData();
+      fetchData(webapp);
     } else {
       setLoading(false);
     }
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-
-      // Get user ID from Telegram (in production, this would be from the auth)
-      const userId = tg?.initDataUnsafe.user?.id || 1;
-
-      // Fetch recent actions
-      const actionsRes = await fetch(`/api/v1/actions/recent?user_id=${userId}&limit=10`);
-      if (actionsRes.ok) {
-        const actionsData = await actionsRes.json();
-        setActions(actionsData);
-      }
-
-      // Fetch pending approvals
-      const pendingRes = await fetch(`/api/v1/actions/pending?user_id=${userId}`);
-      if (pendingRes.ok) {
-        const pendingData = await pendingRes.json();
-        setPendingActions(pendingData);
-      }
-
-      // Fetch metrics
-      const metricsRes = await fetch(`/api/v1/metrics/performance?user_id=${userId}`);
-      if (metricsRes.ok) {
-        const metricsData = await metricsRes.json();
-        setMetrics(metricsData);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchData]);
 
   const handleApprove = async (actionId: number) => {
     try {
