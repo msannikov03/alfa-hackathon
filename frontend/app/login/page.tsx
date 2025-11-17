@@ -17,12 +17,9 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password }),
+      const { data } = await api.post<LoginResponse>("/auth/login", {
+        username,
+        password,
       });
 
       if (response.ok) {
@@ -38,11 +35,27 @@ export default function LoginPage() {
         );
       }
     } catch (err) {
-      setError("Network error. Please make sure the backend is running.");
+      const message = extractErrorMessage(err);
+      setError(message);
       console.error("Login error:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const extractErrorMessage = (err: unknown) => {
+    const fallback = "Login failed. Please check your credentials.";
+
+    const axiosError = err as AxiosError<{ detail?: string }>;
+    if (axiosError?.response?.data?.detail) {
+      return axiosError.response.data.detail;
+    }
+
+    if (axiosError?.message?.toLowerCase().includes("network")) {
+      return "Network error. Please make sure the backend is running.";
+    }
+
+    return fallback;
   };
 
   return (

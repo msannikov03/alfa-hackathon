@@ -1,24 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  /* Clean professional theme inspired by modern B2B design */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(0.98 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.45 0.15 220); /* Professional deep blue */
+  /* Modern enterprise theme - light mode with professional accents */
+  --background: oklch(0.98 0.001 220); /* Off-white with subtle cool tint */
+  --foreground: oklch(0.2 0.01 220); /* Deep charcoal */
+  --card: oklch(1 0 0); /* Pure white */
+  --card-foreground: oklch(0.2 0.01 220); /* Deep charcoal */
+  --popover: oklch(1 0 0); /* Pure white */
+  --popover-foreground: oklch(0.2 0.01 220); /* Deep charcoal */
+  --primary: oklch(0.48 0.18 220); /* Vibrant professional blue */
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.35 0.12 160); /* Professional teal */
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.45 0.15 220);
-  --accent-foreground: oklch(1 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.45 0.15 220);
+  --secondary: oklch(0.55 0.15 160); /* Teal accent */
+  --secondary-foreground: oklch(0.2 0.01 220);
+  --muted: oklch(0.92 0.001 220); /* Light gray */
+  --muted-foreground: oklch(0.5 0.01 220); /* Medium gray */
+  --accent: oklch(0.65 0.18 120); /* Vibrant success green */
+  --accent-foreground: oklch(0.2 0.01 220);
+  --border: oklch(0.92 0.001 220); /* Light border */
+  --input: oklch(0.96 0.001 220); /* Light input background */
+  --ring: oklch(0.48 0.18 220); /* Blue focus ring */
+  --destructive: oklch(0.55 0.18 20); /* Alert red */
+  --warning: oklch(0.65 0.16 60); /* Warning yellow */
+  --success: oklch(0.65 0.18 120); /* Success green */
 }
 
 .dark {
@@ -59,9 +62,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --radius: 0.625rem;
+  --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --font-sans: var(--font-inter);
+  --radius: 0.75rem;
 }
 
 @layer base {
@@ -73,31 +78,60 @@
   }
 }
 
-/* Added smooth animations and transitions */
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
+/* Smooth animations and transitions */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    opacity: 1;
   }
   50% {
-    transform: translateY(-10px);
+    opacity: 0.5;
   }
 }
 
-@keyframes glow {
-  0%,
-  100% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
-  }
-  50% {
-    box-shadow: 0 0 40px rgba(59, 130, 246, 0.2);
-  }
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
 }
 
-.float {
-  animation: float 3s ease-in-out infinite;
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
 }
 
-.glow {
-  animation: glow 2s ease-in-out infinite;
+/* Subtle gradient for cards */
+.card-gradient {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.02) 0%, rgba(16, 185, 129, 0.02) 100%);
+}
+
+/* Rounded cards with subtle shadow */
+.card-elevated {
+  @apply bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow duration-200;
+}
+
+/* High contrast focus states for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+}
+
+/* Status badge animations */
+.badge-pulse {
+  @apply animate-pulse;
 }
