@@ -18,9 +18,9 @@ class BusinessContextCreate(BaseModel):
     raw_description: str
 
 class BusinessContext(BaseModel):
-    id: UUID
+    id: int  # Changed from UUID to int to match database model
     user_id: int
-    raw_description: str
+    raw_description: Optional[str] = None
     structured_data: Optional[Dict[str, Any]] = None
     embedding: Optional[List[str]] = None
 

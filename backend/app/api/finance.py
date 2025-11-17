@@ -44,7 +44,10 @@ async def get_csv_mapping(
         content_str = content.decode('utf-8')
         reader = csv.reader(io.StringIO(content_str))
         headers = next(reader)
-        sample_rows = [next(reader) for _ in range(min(3, len(list(reader))))]
+
+        # Get sample rows properly - convert to list first
+        rows_list = list(reader)
+        sample_rows = rows_list[:min(3, len(rows_list))]
 
         mapping = await finance_service.get_column_mapping_from_llm(headers, sample_rows)
         return {"mapping": mapping, "filename": file.filename}

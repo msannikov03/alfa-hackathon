@@ -1,96 +1,236 @@
 "use client";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings as SettingsIcon, User, Save, Loader2, Bot } from "lucide-react";
-import api from "@/lib/api";
-import { NeonButton } from "@/components/ui/button";
-
-// --- UI Components ---
-const Card = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
-    <div className={`bg-black/20 backdrop-blur-md border border-cyan-500/20 rounded-xl shadow-lg shadow-cyan-500/5 ${className}`}>
-        {children}
-    </div>
-);
+import { Bell, Key, Globe, Shield, Save, Check } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 export default function SettingsPage() {
-    const [rawDescription, setRawDescription] = useState('');
-    const queryClient = useQueryClient();
+  const [saved, setSaved] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [telegramNotifications, setTelegramNotifications] = useState(true);
 
-    const { data: context, isLoading: isLoadingContext } = useQuery({
-        queryKey: ["businessContext"],
-        queryFn: () => api.get("/legal/business-context").then(res => {
-            setRawDescription(res.data.raw_description);
-            return res.data;
-        }),
-    });
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
 
-    const updateContextMutation = useMutation({
-        mutationFn: (description: string) => api.post("/legal/business-context", { raw_description: description }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["businessContext"] }),
-    });
-
-    return (
-        <div className="min-h-screen p-4 sm:p-6 lg:p-8 bg-gray-900 text-white font-sans">
-            <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-4xl font-bold text-cyan-300 drop-shadow-[0_0_5px_rgba(0,255,255,0.3)]">
-                        Настройки
-                    </h1>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* User Profile Section */}
-                    <Card className="p-6">
-                        <h2 className="text-2xl font-semibold tracking-tight text-gray-400 border-b-2 border-cyan-500/20 pb-2 mb-4 flex items-center gap-2">
-                            <User size={24} /> Профиль пользователя
-                        </h2>
-                        {isLoadingContext ? ( // Re-using isLoadingContext for user profile as well for simplicity
-                            <Loader2 className="animate-spin" />
-                        ) : (
-                            <div className="space-y-3">
-                                <p><span className="font-semibold text-cyan-300">Email:</span> user@example.com</p>
-                                <p><span className="font-semibold text-cyan-300">Telegram ID:</span> {process.env.NEXT_PUBLIC_TEMP_USER_ID || '1'}</p>
-                                <p className="text-sm text-gray-500">
-                                    (В реальном приложении здесь будут отображаться данные текущего пользователя)
-                                </p>
-                            </div>
-                        )}
-                    </Card>
-
-                    {/* Business Context Section */}
-                    <Card className="p-6">
-                        <h2 className="text-2xl font-semibold tracking-tight text-gray-400 border-b-2 border-cyan-500/20 pb-2 mb-4 flex items-center gap-2">
-                            <Bot size={24} /> Контекст бизнеса
-                        </h2>
-                        <p className="text-sm text-gray-400 mb-4">Опишите ваш бизнес в свободной форме. AI проанализирует и структурирует его для точного поиска.</p>
-                        <textarea
-                            value={rawDescription}
-                            onChange={(e) => setRawDescription(e.target.value)}
-                            className="w-full h-24 bg-gray-900/80 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                            placeholder="Например: 'У меня кофейня в Москве, работаем как ООО...'"
-                        />
-                        <NeonButton 
-                            onClick={() => updateContextMutation.mutate(rawDescription)} 
-                            isLoading={updateContextMutation.isPending}
-                            disabled={rawDescription === context?.raw_description}
-                            className="w-full mt-2"
-                        >
-                            <Save size={18} />
-                            Сохранить и проанализировать
-                        </NeonButton>
-
-                        {isLoadingContext && <Loader2 className="animate-spin mt-4" />}
-                        {context && (
-                            <div className="mt-4 space-y-2 text-sm">
-                                <h4 className="font-semibold text-cyan-400">Структурированные данные:</h4>
-                                <p><span className="font-mono text-gray-500">Industry:</span> {context.structured_data?.industry}</p>
-                                <p><span className="font-mono text-gray-500">Location:</span> {context.structured_data?.location}</p>
-                                <p><span className="font-mono text-gray-500">Keywords:</span> {context.structured_data?.keywords?.join(', ')}</p>
-                            </div>
-                        )}
-                    </Card>
-                </div>
-            </div>
+  return (
+    <div className="min-h-screen p-4 sm:p-6 lg:p-8 bg-background">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-foreground mb-2">Настройки</h1>
+          <p className="text-muted-foreground">Управляйте настройками и интеграциями</p>
         </div>
-    );
+
+        <div className="space-y-6">
+          {/* Notifications */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Bell className="w-5 h-5 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">Уведомления</h2>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <div>
+                  <p className="font-medium text-foreground">Включить уведомления</p>
+                  <p className="text-sm text-muted-foreground">Получать обновления о вашем бизнесе</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notificationsEnabled}
+                    onChange={(e) => setNotificationsEnabled(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <div>
+                  <p className="font-medium text-foreground">Email Notifications</p>
+                  <p className="text-sm text-muted-foreground">Get daily briefings via email</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={emailNotifications}
+                    onChange={(e) => setEmailNotifications(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                <div>
+                  <p className="font-medium text-foreground">Telegram Notifications</p>
+                  <p className="text-sm text-muted-foreground">Receive alerts via Telegram bot</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={telegramNotifications}
+                    onChange={(e) => setTelegramNotifications(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+            </div>
+          </Card>
+
+          {/* API Configuration */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Key className="w-5 h-5 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">API Configuration</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="api-endpoint" className="text-foreground">Backend API Endpoint</Label>
+                <Input
+                  id="api-endpoint"
+                  type="text"
+                  value={process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}
+                  disabled
+                  className="mt-2 bg-muted text-muted-foreground"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  This is configured via environment variables
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="llm-provider" className="text-foreground">LLM Provider</Label>
+                <div className="mt-2 flex items-center gap-2">
+                  <Input
+                    id="llm-provider"
+                    type="text"
+                    value="LLM7.io"
+                    disabled
+                    className="bg-muted text-muted-foreground"
+                  />
+                  <Badge variant="secondary" className="text-xs">Active</Badge>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Language & Region */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Globe className="w-5 h-5 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">Language & Region</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="language" className="text-foreground">Language</Label>
+                <select
+                  id="language"
+                  className="mt-2 w-full px-3 py-2 bg-card border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="en">English</option>
+                  <option value="ru">Русский</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="timezone" className="text-foreground">Timezone</Label>
+                <select
+                  id="timezone"
+                  className="mt-2 w-full px-3 py-2 bg-card border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="Europe/Moscow">Europe/Moscow (GMT+3)</option>
+                  <option value="Europe/London">Europe/London (GMT+0)</option>
+                  <option value="America/New_York">America/New_York (GMT-5)</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="currency" className="text-foreground">Currency</Label>
+                <select
+                  id="currency"
+                  className="mt-2 w-full px-3 py-2 bg-card border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="RUB">₽ Russian Ruble (RUB)</option>
+                  <option value="USD">$ US Dollar (USD)</option>
+                  <option value="EUR">€ Euro (EUR)</option>
+                </select>
+              </div>
+            </div>
+          </Card>
+
+          {/* Security */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Shield className="w-5 h-5 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">Security</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="current-password" className="text-foreground">Current Password</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  placeholder="Enter current password"
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-password" className="text-foreground">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="Enter new password"
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label htmlFor="confirm-password" className="text-foreground">Confirm New Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  placeholder="Confirm new password"
+                  className="mt-2"
+                />
+              </div>
+              <Button variant="outline" className="w-full text-foreground">
+                Update Password
+              </Button>
+            </div>
+          </Card>
+
+          {/* Save Button */}
+          <div className="flex justify-end gap-3">
+            <Button
+              onClick={handleSave}
+              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {saved ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Saved!
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save Settings
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

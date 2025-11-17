@@ -139,6 +139,11 @@ class LegalService:
         return new_articles
 
     async def _process_articles_for_user(self, db: AsyncSession, context: BusinessContext, articles: List[Dict], article_embeddings: np.ndarray):
+        # Skip if context has no embedding
+        if not context.embedding:
+            logger.warning(f"Business context for user {context.user_id} has no embedding. Skipping article processing.")
+            return
+
         user_embedding = np.array([float(e) for e in context.embedding])
         
         # Cosine similarity

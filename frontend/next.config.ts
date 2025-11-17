@@ -7,6 +7,19 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2mb",
     },
   },
+  // Proxy API requests to backend
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://backend:8000/api/:path*'
+      },
+      {
+        source: '/ws',
+        destination: 'http://backend:8000/ws'
+      }
+    ];
+  },
   // Required for Telegram WebApp
   async headers() {
     return [
@@ -18,19 +31,6 @@ const nextConfig: NextConfig = {
             value: "ALLOWALL",
           },
         ],
-      },
-    ];
-  },
-  // API Proxy for production - routes /api/* to backend container
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "http://backend:8000/api/:path*",
-      },
-      {
-        source: "/ws",
-        destination: "http://backend:8000/ws",
       },
     ];
   },

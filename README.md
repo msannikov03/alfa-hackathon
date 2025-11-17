@@ -13,10 +13,26 @@ Autonomous AI business assistant with Telegram bot, real-time dashboard, and aut
 - **💾 Memory & Learning** - ChromaDB vector store for pattern recognition
 
 ### Intelligence Features (Phase 2)
-- **🎯 Competitor Monitoring** - Automatic scanning of competitor websites and Telegram channels every 2 hours
-- **⚖️ Legal Compliance Scanner** - Daily RSS feed monitoring for relevant regulations with compliance alerts
-- **💰 Financial Predictor** - AI-powered 7-day cash flow forecasting with CSV upload
-- **📈 Strategic Trends** - Cross-domain analysis identifying opportunities and threats
+- **🎯 Competitor Monitoring**
+  - Automatic scanning of websites and Telegram channels every 2 hours
+  - Add/manage competitors via bot or dashboard
+  - AI identifies price changes, promotions, new products
+  - Detailed error handling for blocked/unavailable sites
+- **⚖️ Legal Compliance Scanner**
+  - Daily RSS feed monitoring for relevant regulations
+  - Set business context for personalized legal alerts
+  - Automatic compliance deadlines and action items
+  - Full integration in bot and dashboard
+- **💰 Financial Predictor**
+  - AI-powered 7-day cash flow forecasting
+  - CSV upload via bot or dashboard
+  - Automatic column detection with LLM
+  - Risk analysis and recommendations
+- **📈 Strategic Trends**
+  - Cross-domain analysis (finance + legal + competitors)
+  - Identifies opportunities, threats, and efficiency improvements
+  - Actionable recommendations with importance scoring
+  - Available via bot command and dashboard
 
 ## Quick Start
 
@@ -60,24 +76,67 @@ nano .env
 
 ## Bot Commands
 
+### Core Commands
 ```
-/start       - Choose Demo or Live mode
-/briefing    - Get today's business briefing
-/stats       - View statistics and metrics
-/approve     - Check pending approvals
-/setup       - Configure your business profile
-/changemode  - Switch between Demo/Live modes
-/help        - Show all commands
+/start        - Choose Demo or Live mode
+/briefing     - Get today's business briefing
+/stats        - View statistics and metrics
+/approve      - Check pending approvals
+/setup        - Configure your business profile
+/setpassword  - Set password for dashboard access
+/changemode   - Switch between Demo/Live modes
+/help         - Show all commands
 ```
 
-## Demo Mode
+### Intelligence Features
+```
+🎯 Competitor Monitoring:
+/competitors      - List all tracked competitors
+/addcompetitor    - Add new competitor (wizard)
+/scancompetitors  - Scan all competitors now
 
-Pre-loaded with complete sample business (Demo Coffee Shop):
+⚖️ Legal & Compliance:
+/legal        - View recent legal updates
+/setcontext   - Set business context for monitoring
+/compliance   - View compliance alerts and deadlines
+
+💰 Financial Analytics:
+/forecast     - View 7-day cash flow forecast
+📎 Send CSV   - Upload bank statement for analysis
+
+📈 Strategic Intelligence:
+/trends       - View cross-domain strategic trends
+```
+
+## Demo Mode - Rich Sample Data
+
+**Why Demo Data?** Setting up a complete business intelligence system takes time. Our demo mode lets you see the full value immediately - every feature, every insight, working out of the box.
+
+Pre-loaded with complete **Demo Coffee Shop** business:
+
+**Core Features:**
 - ✅ 6 autonomous actions (inventory, staffing, marketing, pricing)
 - ✅ 3 pending approvals to test workflow
-- ✅ Full business metrics (₽75K/day revenue, 150 customers)
-- ✅ Today's briefing with AI insights
-- ✅ Perfect for showing value to testers
+- ✅ Full business context (₽75K/day revenue, 150 customers, 8 staff)
+- ✅ Today's AI-generated briefing with actionable insights
+- ✅ 30 days of financial transaction history
+
+**Phase 2 Intelligence:**
+- ✅ 4 real competitors (Coffee House, Starbucks, Шоколадница, Кофемания)
+- ✅ 8 competitor actions tracked (price changes, promotions, new products)
+- ✅ 4 legal updates with impact analysis (VAT increase, online cash register rules, etc.)
+- ✅ 3 compliance alerts with due dates (urgent tasks you need to complete)
+- ✅ 7-day cash flow forecast (₽450K → ₽900K+ projected)
+- ✅ 5 strategic market trends (opportunities, threats, efficiency improvements)
+- ✅ Complete briefing report ready to view
+
+**Perfect For:**
+- 🎯 Demos and presentations - show real value instantly
+- 🧪 Testing all features without manual data entry
+- 📊 Understanding what the system can do for your business
+- 🚀 Getting started quickly in production (just switch to Live mode when ready)
+
+All data is realistic, interconnected, and demonstrates the full power of the AI assistant.
 
 ## Tech Stack
 

@@ -1,73 +1,113 @@
 "use client";
 
-import Link from 'next/link';
-import { ArrowRight, Users, Shield, Landmark, LineChart } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Users,
+  Shield,
+  Landmark,
+  LineChart,
+  Sparkles,
+} from "lucide-react";
 
-const Card = ({ children, className = '' }: { children: React.ReactNode, className?: string }) => (
-    <div className={`bg-black/20 backdrop-blur-md border border-cyan-500/20 rounded-xl shadow-lg shadow-cyan-500/5 ${className}`}>
-        {children}
-    </div>
+const Card = ({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) => (
+  <div
+    className={`bg-card border border-border rounded-lg transition-all duration-300 hover:border-primary/50 hover:shadow-md ${className}`}
+  >
+    {children}
+  </div>
 );
 
-const DashboardWidget = ({ href, icon: Icon, title, description }: { href: string, icon: React.ElementType, title: string, description: string }) => {
-    return (
-        <Link href={href}>
-            <Card className="p-6 group hover:border-cyan-500/50 transition-all h-full flex flex-col justify-between">
-                <div>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2 bg-gray-700 rounded-lg">
-                            <Icon className="text-gray-300" />
-                        </div>
-                        <h3 className="font-bold text-lg text-cyan-300">{title}</h3>
-                    </div>
-                    <p className="text-sm text-gray-400">{description}</p>
-                </div>
-                <div className="flex justify-end items-center text-sm mt-4">
-                    <ArrowRight className="text-gray-500 group-hover:text-white group-hover:translate-x-1 transition-transform" />
-                </div>
-            </Card>
-        </Link>
-    );
+const DashboardWidget = ({
+  href,
+  icon: Icon,
+  title,
+  description,
+}: {
+  href: string;
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}) => {
+  return (
+    <Link href={href}>
+      <Card className="p-6 group h-full flex flex-col justify-between hover:shadow-lg">
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-primary/10 rounded-lg border border-primary/20 group-hover:border-primary/50 group-hover:bg-primary/15 transition-all duration-300">
+              <Icon className="text-primary h-5 w-5" />
+            </div>
+            <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors duration-300">
+              {title}
+            </h3>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {description}
+          </p>
+        </div>
+        <div className="flex justify-end items-center text-sm mt-6">
+          <ArrowRight className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-300 h-4 w-4" />
+        </div>
+      </Card>
+    </Link>
+  );
 };
 
 export default function DashboardHomePage() {
-    return (
-        <div className="min-h-screen p-4 sm:p-6 lg:p-8 bg-gray-900 text-white">
-            <div className="max-w-7xl mx-auto">
-                <h1 className="text-4xl font-bold mb-2 text-cyan-300 drop-shadow-[0_0_5px_rgba(0,255,255,0.3)]">
-                    Alfa Intelligence
-                </h1>
-                <p className="text-lg text-gray-400 mb-8">
-                    Ваш автономный бизнес-ассистент.
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <DashboardWidget 
-                        href="/dashboard/competitors"
-                        icon={Users}
-                        title="Конкуренты"
-                        description="Анализируйте действия конкурентов в реальном времени."
-                    />
-                    <DashboardWidget 
-                        href="/dashboard/legal"
-                        icon={Shield}
-                        title="Законы"
-                        description="Отслеживайте изменения в законодательстве, чтобы избежать штрафов."
-                    />
-                    <DashboardWidget 
-                        href="/dashboard/finance"
-                        icon={Landmark}
-                        title="Финансы"
-                        description="Получайте прогнозы по денежному потоку и избегайте кассовых разрывов."
-                    />
-                    <DashboardWidget 
-                        href="/dashboard/trends"
-                        icon={LineChart}
-                        title="Тренды"
-                        description="Находите новые рыночные возможности и будьте на шаг впереди."
-                    />
-                </div>
+  return (
+    <div className="min-h-screen p-6 sm:p-8 lg:p-10 bg-background">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-12">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
+              <Sparkles className="h-5 w-5 text-primary" />
             </div>
+            <span className="text-xs font-semibold text-primary uppercase tracking-widest">
+              Бизнес-ассистент нового поколения
+            </span>
+          </div>
+          <h1 className="text-5xl sm:text-6xl font-bold mb-4 text-foreground tracking-tight">
+            Alfa Intelligence
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
+            Ваш автономный бизнес-помощник. Получайте аналитику, прогнозы и
+            рекомендации в реальном времени для роста вашего бизнеса.
+          </p>
         </div>
-    );
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <DashboardWidget
+            href="/dashboard/competitors"
+            icon={Users}
+            title="Конкуренты"
+            description="Анализируйте действия конкурентов в реальном времени и получайте стратегические инсайты."
+          />
+          <DashboardWidget
+            href="/dashboard/legal"
+            icon={Shield}
+            title="Юридическое"
+            description="Отслеживайте законодательные изменения, чтобы избежать штрафов и снизить риски."
+          />
+          <DashboardWidget
+            href="/dashboard/finance"
+            icon={Landmark}
+            title="Финансы"
+            description="Получайте прогнозы денежных потоков и избегайте кассовых разрывов заранее."
+          />
+          <DashboardWidget
+            href="/dashboard/trends"
+            icon={LineChart}
+            title="Тренды"
+            description="Откройте новые рыночные возможности и опережайте конкурентов."
+          />
+        </div>
+      </div>
+    </div>
+  );
 }

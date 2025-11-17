@@ -56,21 +56,27 @@ class FinanceService:
         await db.execute(delete(FinancialTransaction).where(FinancialTransaction.user_id == user_id))
 
         df = pd.read_csv(io.BytesIO(file_content))
-        
-        # Rename columns based on mapping
+
+        # Process amount first (before renaming)
+        amount_logic = mapping['amount_logic']
+        if amount_logic['type'] == 'single_column':
+            if amount_logic['amount_column'] in df.columns:
+                df['amount'] = pd.to_numeric(df[amount_logic['amount_column']], errors='coerce')
+            else:
+                raise ValueError(f"Column '{amount_logic['amount_column']}' not found in CSV")
+        elif amount_logic['type'] == 'separate_columns':
+            if amount_logic.get('income_column') in df.columns and amount_logic.get('expense_column') in df.columns:
+                income = pd.to_numeric(df[amount_logic['income_column']], errors='coerce').fillna(0)
+                expense = pd.to_numeric(df[amount_logic['expense_column']], errors='coerce').fillna(0)
+                df['amount'] = income - expense
+            else:
+                raise ValueError(f"Income or expense columns not found in CSV")
+
+        # Now rename columns based on mapping
         df.rename(columns={
             mapping['date_column']: 'date',
             mapping['description_column']: 'description'
         }, inplace=True)
-
-        # Process amount
-        amount_logic = mapping['amount_logic']
-        if amount_logic['type'] == 'single_column':
-            df['amount'] = pd.to_numeric(df[amount_logic['amount_column']], errors='coerce')
-        elif amount_logic['type'] == 'separate_columns':
-            income = pd.to_numeric(df[amount_logic['income_column']], errors='coerce').fillna(0)
-            expense = pd.to_numeric(df[amount_logic['expense_column']], errors='coerce').fillna(0)
-            df['amount'] = income - expense
         
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
         df.dropna(subset=['date', 'amount'], inplace=True)

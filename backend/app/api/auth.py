@@ -60,6 +60,9 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token"""
     to_encode = data.copy()
+    # Ensure 'sub' is a string (JWT standard)
+    if 'sub' in to_encode and isinstance(to_encode['sub'], int):
+        to_encode['sub'] = str(to_encode['sub'])
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
@@ -79,10 +82,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     try:
         token = credentials.credentials
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        user_id_str = payload.get("sub")
+        if user_id_str is None:
             raise credentials_exception
-    except JWTError:
+        # Convert string back to int
+        user_id = int(user_id_str)
+    except (JWTError, ValueError):
         raise credentials_exception
 
     async with AsyncSessionLocal() as session:
@@ -98,25 +103,39 @@ async def get_current_user_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security)
 ) -> int:
     """
-    Get current user ID from JWT token, or fall back to demo user (user_id=1) if no token provided.
+    Get current user ID from JWT token, or fall back to demo_admin user if no token provided.
     This allows Phase 2 features to work without authentication for demo purposes.
     """
+    async def get_demo_user_id() -> int:
+        """Get demo_admin user ID from database"""
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(User).where(User.username == "demo_admin"))
+            demo_user = result.scalar_one_or_none()
+            if demo_user:
+                return demo_user.id
+            # Fallback to user_id=1 if demo_admin doesn't exist
+            return 1
+
     if credentials is None:
-        # No authentication provided, use demo user (user_id=1)
-        logger.info("No authentication provided, using demo user_id=1")
-        return 1
+        # No authentication provided, use demo_admin user
+        demo_user_id = await get_demo_user_id()
+        logger.info(f"No authentication provided, using demo_admin user_id={demo_user_id}")
+        return demo_user_id
 
     try:
         token = credentials.credentials
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-        user_id: int = payload.get("sub")
-        if user_id is None:
-            logger.warning("Invalid token, falling back to demo user_id=1")
-            return 1
-        return user_id
-    except JWTError as e:
-        logger.warning(f"JWT decode error: {e}, falling back to demo user_id=1")
-        return 1
+        user_id_str = payload.get("sub")
+        if user_id_str is None:
+            demo_user_id = await get_demo_user_id()
+            logger.warning(f"Invalid token, falling back to demo_admin user_id={demo_user_id}")
+            return demo_user_id
+        # Convert string to int
+        return int(user_id_str)
+    except (JWTError, ValueError) as e:
+        demo_user_id = await get_demo_user_id()
+        logger.warning(f"JWT decode error: {e}, falling back to demo_admin user_id={demo_user_id}")
+        return demo_user_id
 
 
 @router.post("/register", response_model=Token)
