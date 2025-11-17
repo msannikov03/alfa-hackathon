@@ -5,25 +5,27 @@ import { Building2, Users, MapPin, Clock, TrendingUp, Sparkles, Bot } from "luci
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
+import { getClientUserId } from "@/lib/user";
 
 export default function ProfilePage() {
-  const [userId] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    return localStorage.getItem("user_id");
-  });
+  const [userId] = useState<number>(() => getClientUserId());
 
   const { data: profile } = useQuery({
     queryKey: ["userProfile", userId],
-    queryFn: () => api.get(`/user/${userId}`).then((res) => res.data),
-    enabled: !!userId,
+    queryFn: async () => {
+      const response = await api.get(`/user/${userId}`);
+      return response.data;
+    },
   });
 
   const { data: metrics } = useQuery({
     queryKey: ["performanceMetrics", userId],
-    queryFn: () => api.get(`/v1/metrics/performance?user_id=${userId}`).then((res) => res.data),
-    enabled: !!userId,
+    queryFn: async () => {
+      const response = await api.get("/v1/metrics/performance", {
+        params: { user_id: userId },
+      });
+      return response.data;
+    },
   });
 
   // Hardcoded AI-generated business summary (proof of concept)

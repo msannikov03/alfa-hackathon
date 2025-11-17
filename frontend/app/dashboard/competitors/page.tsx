@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import api from "@/lib/api";
+import { getClientUserId } from "@/lib/user";
 
 const AddCompetitorModal = ({
   isOpen,
@@ -128,17 +129,34 @@ const BenchmarkBar = ({ label, usValue, competitorValue, better }: any) => {
 
 export default function CompetitorsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isActionsModalOpen, setIsActionsModalOpen] = useState(false);
+  const [activeCompetitorId, setActiveCompetitorId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const userId = getClientUserId();
 
   const { data: competitors, isLoading: isLoadingCompetitors } = useQuery({
-    queryKey: ["competitors"],
-    queryFn: () => api.get("/competitors").then((res) => res.data),
+    queryKey: ["competitors", userId],
+    queryFn: () => api.get("/competitors", { params: { user_id: userId } }).then((res) => res.data),
   });
 
   const { data: insights, isLoading: isLoadingInsights } = useQuery({
-    queryKey: ["competitor-insights"],
-    queryFn: () => api.get("/competitors/insights").then((res) => res.data),
+    queryKey: ["competitor-insights", userId],
+    queryFn: () => api.get("/competitors/insights", { params: { user_id: userId } }).then((res) => res.data),
     refetchInterval: 60000, // Refresh every minute
+  });
+
+  const {
+    data: competitorActions,
+    isFetching: isFetchingActions,
+    isError: isActionsError,
+  } = useQuery({
+    queryKey: ["competitor-actions", activeCompetitorId, userId],
+    queryFn: () =>
+      api
+        .get(`/competitors/${activeCompetitorId}/actions`, { params: { user_id: userId } })
+        .then((res) => res.data),
+    enabled: Boolean(activeCompetitorId),
+    refetchInterval: 60000,
   });
 
   const addCompetitorMutation = useMutation({
@@ -312,6 +330,18 @@ export default function CompetitorsPage() {
                   </Button>
                   <Button
                     size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setActiveCompetitorId(competitor.id);
+                      setIsActionsModalOpen(true);
+                    }}
+                    className="gap-2"
+                  >
+                    <Search className="w-4 h-4" />
+                    Действия
+                  </Button>
+                  <Button
+                    size="sm"
                     variant="destructive"
                     onClick={() =>
                       deleteCompetitorMutation.mutate(competitor.id)
@@ -343,6 +373,56 @@ export default function CompetitorsPage() {
         onClose={() => setIsModalOpen(false)}
         onAdd={(data) => addCompetitorMutation.mutate(data)}
       />
+
+      <Dialog
+        open={isActionsModalOpen}
+        onOpenChange={(open) => {
+          setIsActionsModalOpen(open);
+          if (!open) {
+            setActiveCompetitorId(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Обнаруженные действия конкурента</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-4">
+            {isFetchingActions && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Загрузка действий...</span>
+              </div>
+            )}
+            {isActionsError && (
+              <p className="text-sm text-destructive">
+                Не удалось получить действия конкурента. Попробуйте позже.
+              </p>
+            )}
+            {!isFetchingActions && !isActionsError && competitorActions?.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Пока нет зафиксированных действий для этого конкурента.
+              </p>
+            )}
+            {competitorActions?.map((action: any) => (
+              <Card key={action.id} className="p-4 space-y-2">
+                <Badge variant="secondary" className="w-fit">
+                  {action.action_type}
+                </Badge>
+                <p className="text-sm text-foreground">
+                  {action.details?.title || action.details?.description || "Изменение без описания"}
+                </p>
+                {action.details?.description && (
+                  <p className="text-sm text-muted-foreground">{action.details.description}</p>
+                )}
+                <span className="text-xs text-muted-foreground block">
+                  {new Date(action.detected_at).toLocaleString("ru-RU")}
+                </span>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

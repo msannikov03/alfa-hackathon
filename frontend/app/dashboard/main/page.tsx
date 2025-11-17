@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { TrendingUp, TrendingDown, Bell, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { AxiosError } from "axios";
+import { TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +11,219 @@ import KPICard from "@/components/dashboard/kpi-card";
 import ActivityFeed from "@/components/dashboard/activity-feed";
 import AutonomousActions from "@/components/dashboard/autonomous-actions";
 import DashboardTabs from "@/components/dashboard/dashboard-tabs";
+import api from "@/lib/api";
+import { getClientUserId } from "@/lib/user";
+
+interface PerformanceMetrics {
+  total_actions: number;
+  approved_actions: number;
+  pending_approvals: number;
+  time_saved_hours: number;
+  automation_rate: number;
+  decisions_made: number;
+}
+
+interface SavingsMetrics {
+  total_actions: number;
+  time_saved_hours: number;
+  money_saved_rub: number;
+  avg_action_value: number;
+}
+
+interface ForecastPoint {
+  date: string;
+  balance: number;
+}
+
+interface CashFlowForecast {
+  predicted_data: ForecastPoint[];
+}
+
+interface ComplianceAlert {
+  id: string;
+  status: string;
+  action_required: string;
+  due_date: string | null;
+}
+
+const formatCurrency = new Intl.NumberFormat("ru-RU", {
+  style: "currency",
+  currency: "RUB",
+  maximumFractionDigits: 0,
+});
 
 export default function MainDashboard() {
   const [activeTab, setActiveTab] = useState("finance");
+  const [userId] = useState<number>(() => getClientUserId());
+
+  const {
+    data: performanceMetrics,
+    isLoading: performanceLoading,
+  } = useQuery({
+    queryKey: ["performance-metrics", userId],
+    queryFn: async () => {
+      const response = await api.get<PerformanceMetrics>("/v1/metrics/performance", {
+        params: { user_id: userId },
+      });
+      return response.data;
+    },
+  });
+
+  const { data: savingsMetrics, isLoading: savingsLoading } = useQuery({
+    queryKey: ["savings-metrics", userId],
+    queryFn: async () => {
+      const response = await api.get<SavingsMetrics>("/v1/metrics/savings", {
+        params: { user_id: userId },
+      });
+      return response.data;
+    },
+  });
+
+  const { data: financeForecast, isLoading: forecastLoading } = useQuery({
+    queryKey: ["finance-forecast", userId],
+    queryFn: async () => {
+      try {
+        const response = await api.get<CashFlowForecast>("/v1/finance/forecast", {
+          params: { user_id: userId },
+        });
+        return response.data;
+      } catch (error) {
+        const axiosError = error as AxiosError;
+        if (axiosError.response?.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    retry: false,
+  });
+
+  const { data: complianceAlerts = [], isLoading: alertsLoading } = useQuery({
+    queryKey: ["compliance-alerts", userId],
+    queryFn: async () => {
+      const response = await api.get<ComplianceAlert[]>("/v1/legal/compliance-alerts", {
+        params: { user_id: userId },
+      });
+      return response.data;
+    },
+  });
+
+  const kpis = useMemo(() => {
+    const balanceToday = financeForecast?.predicted_data?.[0]?.balance ?? null;
+    const balanceTomorrow = financeForecast?.predicted_data?.[1]?.balance ?? null;
+    const balanceChange =
+      balanceToday !== null && balanceTomorrow !== null ? balanceTomorrow - balanceToday : 0;
+    const balanceTrend =
+      balanceToday !== null && balanceToday !== 0 ? (balanceChange / Math.abs(balanceToday)) * 100 : 0;
+
+    const decisionsMade = performanceMetrics?.decisions_made ?? 0;
+    const pendingApprovals = performanceMetrics?.pending_approvals ?? 0;
+    const automationRate = performanceMetrics?.automation_rate ?? 0;
+
+    const pendingAlerts = complianceAlerts.filter((alert) => alert.status !== "completed");
+    const nextDue = pendingAlerts
+      .map((alert) => alert.due_date)
+      .filter(Boolean)
+      .sort()
+      .at(0);
+
+    const runwayPoints = financeForecast?.predicted_data ?? [];
+    const runwayDays = (() => {
+      if (!runwayPoints.length) return 0;
+      const negativeIndex = runwayPoints.findIndex((point) => point.balance < 0);
+      if (negativeIndex === -1) {
+        return runwayPoints.length - 1;
+      }
+      return negativeIndex;
+    })();
+    const avgDailyChange = (() => {
+      if (runwayPoints.length < 2) return 0;
+      const first = runwayPoints[0].balance;
+      const last = runwayPoints[runwayPoints.length - 1].balance;
+      return (last - first) / (runwayPoints.length - 1);
+    })();
+
+    const dailyChangeLabel = (() => {
+      if (avgDailyChange === 0) {
+        return "0 ₽/день";
+      }
+      const formatted = formatCurrency.format(Math.abs(avgDailyChange));
+      return `${avgDailyChange >= 0 ? "+" : "-"}${formatted}/день`;
+    })();
+
+    const badgeForAlerts = pendingAlerts.length === 0 ? "success" : pendingAlerts.length > 2 ? "danger" : "warning";
+
+    return [
+      {
+        title: "Текущий баланс",
+        value: balanceToday !== null ? formatCurrency.format(balanceToday) : "—",
+        trend: {
+          value: Number(balanceTrend.toFixed(1)),
+          isPositive: balanceTrend >= 0,
+          label: `${balanceTrend >= 0 ? "+" : ""}${balanceTrend.toFixed(1)}%`,
+        },
+        badge: {
+          label: balanceTrend >= 0 ? "Рост" : "Просадка",
+          variant: balanceTrend >= 0 ? "success" : "danger",
+        } as const,
+        description:
+          balanceTomorrow !== null
+            ? `Прогноз на завтра: ${formatCurrency.format(balanceTomorrow)}`
+            : "Загрузите CSV с транзакциями",
+      },
+      {
+        title: "Решения AI",
+        value: decisionsMade.toString(),
+        trend: {
+          value: automationRate,
+          isPositive: automationRate >= 50,
+          label: `${automationRate.toFixed(1)}%`,
+        },
+        badge: {
+          label: pendingApprovals ? "Нужна проверка" : "Оптимально",
+          variant: pendingApprovals ? "warning" : "success",
+        } as const,
+        description: `Ожидает подтверждения: ${pendingApprovals}`,
+      },
+      {
+        title: "Комплаенс",
+        value: pendingAlerts.length.toString(),
+        trend: {
+          value: pendingAlerts.length,
+          isPositive: pendingAlerts.length === 0,
+          label: pendingAlerts.length ? `${pendingAlerts.length} активн.` : "0",
+        },
+        badge: {
+          label: pendingAlerts.length ? "Внимание" : "Нет рисков",
+          variant: badgeForAlerts,
+        } as const,
+        description: nextDue ? `Ближайший дедлайн: ${new Date(nextDue).toLocaleDateString("ru-RU")}` : "Все дедлайны закрыты",
+      },
+      {
+        title: "Денежный запас",
+        value: runwayDays ? `${runwayDays} дн.` : "—",
+        trend: {
+          value: avgDailyChange,
+          isPositive: avgDailyChange >= 0,
+          label: dailyChangeLabel,
+        },
+        badge: {
+          label: runwayDays >= 7 ? "Стабильно" : "Короткий горизонт",
+          variant: runwayDays >= 7 ? "success" : "warning",
+        } as const,
+        description: savingsMetrics
+          ? `Сэкономлено временем: ${savingsMetrics.time_saved_hours.toFixed(1)} ч`
+          : "Подождите обновления",
+      },
+    ];
+  }, [
+    financeForecast,
+    performanceMetrics,
+    complianceAlerts,
+    savingsMetrics,
+  ]);
+
+  const kpiLoading = performanceLoading || savingsLoading || forecastLoading || alertsLoading;
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,36 +265,21 @@ export default function MainDashboard() {
       <div className="mx-auto max-w-7xl px-6 py-8 sm:px-8 md:py-12">
         {/* KPI Grid */}
         <section className="mb-12">
-          <h2 className="mb-6 text-2xl font-bold text-foreground">Key Performance Indicators</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-foreground">Цифры автопилота</h2>
+            {kpiLoading && <span className="text-sm text-muted-foreground">Обновляем данные...</span>}
+          </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <KPICard
-              title="Revenue Today"
-              value="$124,500"
-              trend={{ value: 12.5, isPositive: true }}
-              badge={{ label: "On Track", variant: "success" }}
-              description="↑ $15,200 from yesterday"
-            />
-            <KPICard
-              title="Active Decisions"
-              value="18"
-              trend={{ value: 8.2, isPositive: true }}
-              badge={{ label: "Optimal", variant: "success" }}
-              description="5 pending review"
-            />
-            <KPICard
-              title="Compliance Alerts"
-              value="3"
-              trend={{ value: 2.1, isPositive: false }}
-              badge={{ label: "Monitor", variant: "warning" }}
-              description="1 requires immediate action"
-            />
-            <KPICard
-              title="Cash Runway"
-              value="8.2 months"
-              trend={{ value: 1.5, isPositive: true }}
-              badge={{ label: "Healthy", variant: "success" }}
-              description="Current burn rate: $45K/mo"
-            />
+            {kpis.map((kpi) => (
+              <KPICard
+                key={kpi.title}
+                title={kpi.title}
+                value={kpi.value}
+                trend={kpi.trend}
+                badge={kpi.badge}
+                description={kpi.description}
+              />
+            ))}
           </div>
         </section>
 

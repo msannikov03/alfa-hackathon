@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 interface KPICardProps {
   title: string;
   value: string;
-  trend: { value: number; isPositive: boolean };
-  badge: { label: string; variant: "success" | "warning" };
+  trend: { value: number; isPositive: boolean; label?: string };
+  badge: { label: string; variant: "success" | "warning" | "danger" };
   description: string;
 }
 
@@ -16,6 +16,7 @@ export default function KPICard({ title, value, trend, badge, description }: KPI
   const badgeVariants = {
     success: "bg-success/20 text-success border-success/30 border",
     warning: "bg-warning/20 text-warning border-warning/30 border",
+    danger: "bg-destructive/20 text-destructive border-destructive/30 border",
   };
 
   return (
@@ -46,7 +47,7 @@ export default function KPICard({ title, value, trend, badge, description }: KPI
             ) : (
               <TrendingDown className="h-4 w-4" />
             )}
-            <span>{trend.value}%</span>
+            <span>{trend.label ?? `${trend.value}%`}</span>
           </div>
         </div>
       </div>

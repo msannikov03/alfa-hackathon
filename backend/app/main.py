@@ -14,6 +14,7 @@ from app.api.competitors import router as competitors_router
 from app.api.legal import router as legal_router
 from app.api.finance import router as finance_router
 from app.api.trends import router as trends_router
+from app.api.settings import router as settings_router
 from app.telegram.bot import setup_telegram_bot
 from app.agents.briefing_agent import briefing_agent
 from app.services.legal_service import legal_service
@@ -135,6 +136,7 @@ app.include_router(competitors_router, prefix="/api/competitors", tags=["competi
 app.include_router(legal_router, prefix="/api/legal", tags=["legal"])
 app.include_router(finance_router, prefix="/api/finance", tags=["finance"])
 app.include_router(trends_router, prefix="/api/trends", tags=["trends"])
+app.include_router(settings_router, prefix="/api/settings", tags=["settings"])
 
 
 # WebSocket endpoint

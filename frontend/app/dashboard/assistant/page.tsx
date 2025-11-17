@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
+import { getClientUserId } from "@/lib/user";
 
 interface Message {
   id: string;
@@ -26,19 +27,15 @@ export default function AssistantPage() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId] = useState<number>(() => getClientUserId());
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setUserId(localStorage.getItem("user_id"));
-  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || loading || !userId) return;
+    if (!input.trim() || loading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -54,7 +51,7 @@ export default function AssistantPage() {
     try {
       const response = await api.post("/chat", {
         message: input,
-        user_id: parseInt(userId),
+        user_id: userId,
       });
 
       const assistantMessage: Message = {
@@ -90,8 +87,6 @@ export default function AssistantPage() {
   const handleSuggestedQuestion = async (question: string) => {
     setInput(question);
 
-    if (!userId) return;
-
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -105,7 +100,7 @@ export default function AssistantPage() {
     try {
       const response = await api.post("/chat", {
         message: question,
-        user_id: parseInt(userId),
+        user_id: userId,
       });
 
       const assistantMessage: Message = {

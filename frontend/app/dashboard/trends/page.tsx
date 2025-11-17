@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
+import { getClientUserId } from "@/lib/user";
 
 const InsightCard = ({
   children,
@@ -41,22 +42,29 @@ type PageState = "initial" | "analyzing" | "results";
 
 export default function TrendsPage() {
   const [pageState, setPageState] = useState<PageState>("initial");
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const userId = getClientUserId();
 
   const {
     data: trends,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["trends"],
-    queryFn: () => api.get("/trends").then((res) => res.data),
+    queryKey: ["trends", userId],
+    queryFn: () => api.get("/trends", { params: { user_id: userId } }).then((res) => res.data),
     enabled: false,
   });
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
+    setAnalysisError(null);
     setPageState("analyzing");
-    refetch().then(() => {
-      setPageState("results");
-    });
+    const result = await refetch({ throwOnError: false });
+    if (result.error) {
+      setAnalysisError("Не удалось построить тренды. Попробуйте снова через минуту.");
+      setPageState("initial");
+      return;
+    }
+    setPageState("results");
   };
 
   const renderInitialState = () => (
@@ -87,20 +95,27 @@ export default function TrendsPage() {
       {trends?.map((trend: any, index: number) => (
         <InsightCard key={index}>
           <div className="flex items-start justify-between mb-3">
-            <h3 className="text-lg font-bold flex-1 pr-2 text-foreground">{trend.title}</h3>
+            <div className="flex-1 pr-2">
+              <p className="text-xs uppercase text-muted-foreground mb-1">{trend.insight_type}</p>
+              <h3 className="text-lg font-bold text-foreground">{trend.title}</h3>
+            </div>
             <InsightTypeIcon type={trend.insight_type} />
           </div>
           <p className="text-sm text-muted-foreground mb-4">
             &laquo;{trend.observation}&raquo;
           </p>
           <div className="space-y-2 pt-4 border-t">
-            <h4 className="font-semibold text-sm text-foreground">Рекомендация:</h4>
-            <p className="text-sm text-muted-foreground">
-              {trend.recommendation.action}
-            </p>
-            <p className="text-xs text-muted-foreground italic">
-              {trend.recommendation.justification}
-            </p>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">Действие</Badge>
+              <span className="text-sm text-foreground">
+                {trend.recommendation?.action || "Без рекомендации"}
+              </span>
+            </div>
+            {trend.recommendation?.justification && (
+              <p className="text-xs text-muted-foreground italic">
+                {trend.recommendation.justification}
+              </p>
+            )}
           </div>
         </InsightCard>
       ))}
@@ -118,6 +133,11 @@ export default function TrendsPage() {
             </Button>
           )}
         </div>
+        {analysisError && (
+          <Card className="p-4 mb-6 bg-destructive/5 border-destructive/30 text-sm text-destructive">
+            {analysisError}
+          </Card>
+        )}
         {pageState === "initial" && renderInitialState()}
         {pageState === "analyzing" && renderAnalyzingState()}
         {pageState === "results" && renderResultsState()}

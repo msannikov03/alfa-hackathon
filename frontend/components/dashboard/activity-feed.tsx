@@ -6,6 +6,7 @@ import { CheckCircle, AlertCircle, Clock, Zap, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
+import { getClientUserId } from "@/lib/user";
 
 type FeedStatus = "approved" | "pending" | "needs-review";
 
@@ -33,14 +34,6 @@ const statusConfig: Record<FeedStatus, { badge: string; label: string }> = {
   },
 };
 
-const getInitialUserId = () => {
-  if (typeof window === "undefined") {
-    return 1;
-  }
-  const stored = localStorage.getItem("user_id");
-  return stored ? parseInt(stored, 10) : 1;
-};
-
 const resolveStatus = (action: RecentAction): FeedStatus => {
   if (action.was_approved === false) {
     return "needs-review";
@@ -58,7 +51,7 @@ const resolveIcon = (status: FeedStatus) => {
 };
 
 export default function ActivityFeed() {
-  const [userId] = useState<number>(() => getInitialUserId());
+  const [userId] = useState<number>(() => getClientUserId());
 
   const {
     data: actions = [],

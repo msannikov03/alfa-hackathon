@@ -7,6 +7,7 @@
     import { Button } from "@/components/ui/button";
     import { Badge } from "@/components/ui/badge";
     import api from "@/lib/api";
+    import { getClientUserId } from "@/lib/user";
 
     interface PendingAction {
       id: number;
@@ -31,16 +32,8 @@
       return "low";
     };
 
-    const getInitialUserId = () => {
-      if (typeof window === "undefined") {
-        return 1;
-      }
-      const stored = localStorage.getItem("user_id");
-      return stored ? parseInt(stored, 10) : 1;
-    };
-
     export default function AutonomousActions() {
-      const [userId] = useState<number>(() => getInitialUserId());
+      const [userId] = useState<number>(() => getClientUserId());
       const [processingId, setProcessingId] = useState<number | null>(null);
       const queryClient = useQueryClient();
 
