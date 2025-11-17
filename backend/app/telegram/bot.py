@@ -56,27 +56,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        welcome_message = """👋 Welcome to Alfa Business Assistant!
+        welcome_message = """👋 Добро пожаловать в Alfa Business Assistant!
 
-I'm your autonomous AI business assistant that:
-• Works independently while you sleep
-• Makes decisions within your thresholds
-• Sends morning briefings at 6:00 AM
-• Only asks approval for important decisions
+Я ваш автономный бизнес-ассистент на основе ИИ:
+• Работаю независимо, пока вы спите
+• Принимаю решения в рамках ваших порогов
+• Отправляю утренние брифинги в 6:00
+• Прошу одобрения только для важных решений
 
-**Please choose your mode:**
+**Выберите режим работы:**
 
-🎭 **Demo Mode** - Explore with pre-loaded sample business data
-   • Perfect for testing and seeing what I can do
-   • View a coffee shop business with real scenarios
-   • No setup required!
+🎭 **Демо-режим** - Исследуйте с готовыми демо-данными
+   • Идеально для тестирования и знакомства
+   • Просмотр кофейни с реальными сценариями
+   • Настройка не требуется!
 
-🚀 **Live Mode** - Set up your own business account
-   • Configure your actual business
-   • Start getting real insights
-   • Customize everything
+🚀 **Рабочий режим** - Настройте свой бизнес-аккаунт
+   • Настройте параметры вашего реального бизнеса
+   • Начните получать реальные инсайты
+   • Настройте всё под себя
 
-Choose a mode to get started! 💪"""
+Выберите режим, чтобы начать! 💪"""
 
         await update.message.reply_text(welcome_message, reply_markup=reply_markup)
     else:
@@ -108,33 +108,33 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, mod
 
     # Add mode switch option
     if mode == "demo":
-        keyboard.append([InlineKeyboardButton("🚀 Switch to Live Mode", callback_data="mode_live")])
+        keyboard.append([InlineKeyboardButton("🚀 Переключить на рабочий режим", callback_data="mode_live")])
     else:
-        keyboard.append([InlineKeyboardButton("🎭 View Demo Mode", callback_data="mode_demo")])
+        keyboard.append([InlineKeyboardButton("🎭 Посмотреть демо-режим", callback_data="mode_demo")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    mode_text = "🎭 Demo Mode" if mode == "demo" else "🚀 Live Mode"
+    mode_text = "🎭 Демо-режим" if mode == "demo" else "🚀 Рабочий режим"
 
-    welcome_message = f"""Welcome to Alfa Business Assistant! {mode_text}
+    welcome_message = f"""Добро пожаловать в Alfa Business Assistant! {mode_text}
 
-I'm your autonomous AI business assistant.
+Я ваш автономный бизнес-ассистент на основе ИИ.
 
-**What I do:**
-• Work independently while you sleep
-• Make decisions within thresholds
-• Send morning briefings at 6:00 AM
-• Request approval only for important decisions
+**Что я делаю:**
+• Работаю независимо, пока вы спите
+• Принимаю решения в рамках порогов
+• Отправляю утренние брифинги в 6:00
+• Прошу одобрения только для важных решений
 
-**Commands:**
-/setup - Configure business profile
-/briefing - Get today's briefing
-/stats - Today's statistics
-/approve - Pending approvals
-/help - Show help
-/changemode - Switch between Demo/Live mode
+**Команды:**
+/setup - Настроить профиль бизнеса
+/briefing - Получить брифинг за сегодня
+/stats - Статистика за сегодня
+/approve - Ожидающие одобрения
+/help - Показать помощь
+/changemode - Переключить между Демо/Рабочим режимом
 
-Or just message me, and I'll help! 💪"""
+Или просто напишите мне, и я помогу! 💪"""
 
     # Use appropriate method based on whether this is a callback or message
     if update.callback_query:
@@ -162,24 +162,24 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
             if demo_user:
                 context.user_data['user_id'] = demo_user.id
                 await query.edit_message_text(
-                    f"""✅ Demo Mode Activated!
+                    f"""✅ Демо-режим активирован!
 
-You're now exploring a sample coffee shop business in Moscow.
+Теперь вы исследуете демо-кофейню в Москве.
 
-This demo includes:
-• 📊 Real business metrics and KPIs
-• 🤖 Sample autonomous actions
-• 📋 Pre-generated briefings
-• ✅ Pending approval scenarios
+Демо включает:
+• 📊 Реальные бизнес-метрики и KPI
+• 🤖 Примеры автономных действий
+• 📋 Готовые брифинги
+• ✅ Сценарии ожидающих одобрений
 
-Perfect for seeing what the assistant can do!
+Идеально для знакомства с возможностями ассистента!
 
-Let me show you the main menu..."""
+Показываю главное меню..."""
                 )
                 await show_main_menu(update, context, mode)
             else:
                 await query.edit_message_text(
-                    "❌ Demo data not found. Please run the seed script first:\n\n"
+                    "❌ Демо-данные не найдены. Пожалуйста, запустите скрипт инициализации:\n\n"
                     "`docker exec alfa_backend python seed_demo_data.py`"
                 )
     else:  # live mode
@@ -193,19 +193,19 @@ Let me show you the main menu..."""
 
         if not business_context:
             await query.edit_message_text(
-                """✅ Live Mode Activated!
+                """✅ Рабочий режим активирован!
 
-Let's set up your business profile to get started.
+Давайте настроим профиль вашего бизнеса для начала работы.
 
-Use /setup to configure your business, or use the menu below."""
+Используйте /setup для настройки бизнеса, или воспользуйтесь меню ниже."""
             )
         else:
             await query.edit_message_text(
-                f"""✅ Live Mode Activated!
+                f"""✅ Рабочий режим активирован!
 
-Welcome back to your business: {business_context.get('business_name', 'Your Business')}!
+С возвращением! Ваш бизнес: {business_context.get('business_name', 'Ваш бизнес')}!
 
-Let me show you the main menu..."""
+Показываю главное меню..."""
             )
 
         await show_main_menu(update, context, mode)
@@ -216,14 +216,14 @@ async def changemode_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     current_mode = context.user_data.get('mode', 'none')
 
     keyboard = [
-        [InlineKeyboardButton("🎭 Demo Mode", callback_data="mode_demo")],
-        [InlineKeyboardButton("🚀 Live Mode", callback_data="mode_live")],
+        [InlineKeyboardButton("🎭 Демо-режим", callback_data="mode_demo")],
+        [InlineKeyboardButton("🚀 Рабочий режим", callback_data="mode_live")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        f"Current mode: **{current_mode.title() if current_mode != 'none' else 'Not Set'}**\n\n"
-        "Choose a mode:",
+        f"Текущий режим: **{current_mode.title() if current_mode != 'none' else 'Не установлен'}**\n\n"
+        "Выберите режим:",
         reply_markup=reply_markup
     )
 
@@ -238,7 +238,7 @@ async def briefing(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = db_user.id
 
     message = update.callback_query.message if update.callback_query else update.message
-    await message.reply_text("Generating briefing... ⏳")
+    await message.reply_text("Генерирую брифинг... ⏳")
 
     try:
         briefing_data = await briefing_agent.generate_daily_briefing(user_id)

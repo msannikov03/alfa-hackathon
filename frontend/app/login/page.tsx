@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -26,16 +27,15 @@ export default function LoginPage() {
 
       if (response.ok) {
         const data = await response.json();
-        // Save token to localStorage
         localStorage.setItem("token", data.access_token);
         localStorage.setItem("user_id", data.user_id.toString());
         localStorage.setItem("username", data.username);
-
-        // Redirect to dashboard
         router.push("/dashboard");
       } else {
         const errorData = await response.json();
-        setError(errorData.detail || "Login failed. Please check your credentials.");
+        setError(
+          errorData.detail || "Login failed. Please check your credentials."
+        );
       }
     } catch (err) {
       setError("Network error. Please make sure the backend is running.");
@@ -46,93 +46,108 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Alfa Business Assistant
-            </h1>
-            <p className="text-gray-600">Sign in to access your dashboard</p>
-          </div>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Username
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900"
-                placeholder="Enter your username"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900"
-                placeholder="Enter your password"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
-          </form>
-
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm font-semibold text-blue-900 mb-2">Demo Account:</p>
-            <div className="space-y-1 text-sm text-blue-800">
-              <p><span className="font-medium">Username:</span> demo_admin</p>
-              <p><span className="font-medium">Password:</span> demo123</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setUsername("demo_admin");
-                setPassword("demo123");
-              }}
-              className="mt-3 w-full py-2 px-4 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-            >
-              Use Demo Account
-            </button>
-          </div>
-
-          <div className="mt-4 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have a password?{" "}
-              <span className="text-blue-600 font-medium">
-                Use /setpassword command in the Telegram bot
-              </span>
-            </p>
-          </div>
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="mb-8">
+          <h1 className="text-3xl font-semibold text-balance mb-2">
+            Добро пожаловать в Alfa Intelligence
+          </h1>
+          <p className="text-muted-foreground text-base">
+            Войдите в панель управления вашего бизнес-помощника
+          </p>
         </div>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Need help? Contact your Telegram bot for assistance.
+        {error && (
+          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+            <p className="text-sm text-destructive font-medium">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-5">
+          <div className="space-y-2">
+            <label htmlFor="username" className="block text-sm font-medium">
+              Имя пользователя
+            </label>
+            <input
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              className="w-full px-4 py-2.5 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition duration-200"
+              placeholder="Введите имя пользователя"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="password" className="block text-sm font-medium">
+              Пароль
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full px-4 py-2.5 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition duration-200"
+              placeholder="Введите пароль"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2.5 px-4 mt-6 rounded-lg font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Вход...
+              </>
+            ) : (
+              "Войти"
+            )}
+          </button>
+        </form>
+
+        <div className="mt-8 p-4 bg-muted border border-border rounded-lg">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            Демо-аккаунт
+          </p>
+          <div className="space-y-2 mb-4">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Логин:</span>
+              <code className="bg-background px-2 py-1 rounded text-primary font-mono text-xs">
+                demo_admin
+              </code>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Пароль:</span>
+              <code className="bg-background px-2 py-1 rounded text-primary font-mono text-xs">
+                demo123
+              </code>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setUsername("demo_admin");
+              setPassword("demo123");
+            }}
+            className="w-full py-2 px-3 bg-secondary hover:bg-secondary/90 text-secondary-foreground text-sm font-medium rounded-lg transition duration-200 border border-border"
+          >
+            Использовать демо-аккаунт
+          </button>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-border text-center">
+          <p className="text-xs text-muted-foreground">
+            Нужна помощь? Напишите вашему{" "}
+            <span className="text-primary font-medium">Telegram боту</span> или
+            используйте{" "}
+            <code className="bg-muted px-1.5 py-0.5 rounded text-primary font-mono text-xs">
+              /setpassword
+            </code>
           </p>
         </div>
       </div>
