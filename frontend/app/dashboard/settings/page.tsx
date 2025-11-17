@@ -1,21 +1,80 @@
 "use client";
-import { useState } from "react";
-import { Bell, Key, Globe, Shield, Save, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bell, Key, Globe, Shield, Save, Check, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import api from "@/lib/api";
+import { getClientUserId } from "@/lib/user";
 
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [telegramNotifications, setTelegramNotifications] = useState(true);
+  const [language, setLanguage] = useState("ru");
+  const [timezone, setTimezone] = useState("Europe/Moscow");
+  const [currency, setCurrency] = useState("RUB");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const userId = getClientUserId();
+  const queryClient = useQueryClient();
+
+  const { data: settingsData, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ["userSettings", userId],
+    queryFn: async () => {
+      const response = await api.get("/settings");
+      return response.data;
+    },
+  });
+
+  /* eslint-disable react-hooks/set-state-in-effect -- sync toggles with backend snapshot */
+  useEffect(() => {
+    if (settingsData) {
+      setNotificationsEnabled(settingsData.notifications.enabled);
+      setEmailNotifications(settingsData.notifications.email);
+      setTelegramNotifications(settingsData.notifications.telegram);
+      setLanguage(settingsData.preferences.language);
+      setTimezone(settingsData.preferences.timezone);
+      setCurrency(settingsData.preferences.currency);
+    }
+  }, [settingsData]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async () => {
+      setErrorMessage(null);
+      const payload = {
+        notifications: {
+          enabled: notificationsEnabled,
+          email: emailNotifications,
+          telegram: telegramNotifications,
+        },
+        preferences: {
+          language,
+          timezone,
+          currency,
+        },
+      };
+      const response = await api.post("/settings", payload);
+      return response.data;
+    },
+    onSuccess: () => {
+      setSaved(true);
+      queryClient.invalidateQueries({ queryKey: ["userSettings", userId] });
+      setTimeout(() => setSaved(false), 2000);
+    },
+    onError: () => {
+      setErrorMessage("Не удалось сохранить настройки. Попробуйте ещё раз.");
+    },
+  });
 
   const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    updateSettingsMutation.mutate();
   };
 
   return (
@@ -27,6 +86,12 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-6">
+          {errorMessage && (
+            <Alert variant="destructive">
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Notifications */}
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-6">
@@ -34,6 +99,7 @@ export default function SettingsPage() {
                 <Bell className="w-5 h-5 text-primary" />
               </div>
               <h2 className="text-2xl font-bold text-foreground">Уведомления</h2>
+              {isLoadingSettings && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
@@ -138,9 +204,12 @@ export default function SettingsPage() {
                 <select
                   id="language"
                   className="mt-2 w-full px-3 py-2 bg-card border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  disabled={isLoadingSettings || updateSettingsMutation.isPending}
                 >
-                  <option value="en">English</option>
                   <option value="ru">Русский</option>
+                  <option value="en">English</option>
                 </select>
               </div>
               <div>
@@ -148,6 +217,9 @@ export default function SettingsPage() {
                 <select
                   id="timezone"
                   className="mt-2 w-full px-3 py-2 bg-card border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  disabled={isLoadingSettings || updateSettingsMutation.isPending}
                 >
                   <option value="Europe/Moscow">Europe/Moscow (GMT+3)</option>
                   <option value="Europe/London">Europe/London (GMT+0)</option>
@@ -159,6 +231,9 @@ export default function SettingsPage() {
                 <select
                   id="currency"
                   className="mt-2 w-full px-3 py-2 bg-card border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  disabled={isLoadingSettings || updateSettingsMutation.isPending}
                 >
                   <option value="RUB">₽ Russian Ruble (RUB)</option>
                   <option value="USD">$ US Dollar (USD)</option>
@@ -214,12 +289,18 @@ export default function SettingsPage() {
           <div className="flex justify-end gap-3">
             <Button
               onClick={handleSave}
+              disabled={updateSettingsMutation.isPending || isLoadingSettings}
               className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {saved ? (
                 <>
                   <Check className="w-4 h-4" />
                   Saved!
+                </>
+              ) : updateSettingsMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
                 </>
               ) : (
                 <>

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import api from "@/lib/api";
+import type { AxiosError } from "axios";
 
 // ... existing recharts imports ...
 const DynamicLineChart = dynamic(
@@ -86,11 +87,29 @@ export default function FinancePage() {
   const [currentBalance, setCurrentBalance] = useState("");
   const queryClient = useQueryClient();
 
-  const { data: forecastData, refetch: refetchForecast } = useQuery({
+  const {
+    data: forecastData,
+    refetch: refetchForecast,
+    isFetching: forecastFetching,
+  } = useQuery({
     queryKey: ["financeForecast"],
-    queryFn: () => api.get("/finance/forecast").then((res) => res.data),
-    enabled: false,
+    queryFn: async () => {
+      try {
+        const response = await api.get("/finance/forecast");
+        return response.data;
+      } catch (error) {
+        const axiosError = error as AxiosError;
+        if (axiosError.response?.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    retry: false,
   });
+
+  const effectivePageState: PageState =
+    pageState === "initial" && forecastData ? "results" : pageState;
 
   const mappingMutation = useMutation({
     mutationFn: (file: File) => {
@@ -234,12 +253,29 @@ export default function FinancePage() {
     </Card>
   );
 
-  const renderResultsState = () => (
-    <div className="space-y-6">
-      <Card className="p-6">
-        <h3 className="text-xl font-bold mb-4 text-foreground">Прогноз на 7 дней</h3>
-        <DynamicResponsiveContainer width="100%" height={300}>
-          <DynamicLineChart data={forecastData?.predicted_data}>
+  const renderResultsState = () => {
+    if (!forecastData) {
+      return (
+        <Card className="p-6 text-center text-muted-foreground">
+          <p>У вас пока нет сохраненных прогнозов. Загрузите CSV, чтобы построить прогноз.</p>
+        </Card>
+      );
+    }
+
+    const risks = forecastData.insights?.risks ?? [];
+    const recommendations = forecastData.insights?.recommendations ?? [];
+
+    return (
+      <div className="space-y-6">
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-foreground">Прогноз на 7 дней</h3>
+            {forecastFetching && (
+              <span className="text-sm text-muted-foreground">Обновляем данные...</span>
+            )}
+          </div>
+          <DynamicResponsiveContainer width="100%" height={300}>
+            <DynamicLineChart data={forecastData.predicted_data}>
             <DynamicCartesianGrid strokeDasharray="3 3" />
             <DynamicXAxis dataKey="date" />
             <DynamicYAxis />
@@ -257,56 +293,51 @@ export default function FinancePage() {
               strokeWidth={2}
             />
           </DynamicLineChart>
-        </DynamicResponsiveContainer>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="p-6 border-orange-200 bg-orange-50/50">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-5 h-5 text-orange-600" />
-            <h3 className="text-xl font-bold text-foreground">Considerations</h3>
-          </div>
-          <div className="space-y-3">
-            {forecastData?.insights.risks.length > 0 ? (
-              forecastData.insights.risks.map((risk: any, i: number) => (
-                <div key={i} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-orange-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2 flex-shrink-0" />
-                  <p className="text-sm text-foreground">{risk.message}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground">
-                No significant risks detected.
-              </p>
-            )}
-          </div>
+          </DynamicResponsiveContainer>
         </Card>
 
-        <Card className="p-6 border-green-200 bg-green-50/50">
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            <h3 className="text-xl font-bold text-foreground">Recommendations</h3>
-          </div>
-          <div className="space-y-3">
-            {forecastData?.insights.recommendations.length > 0 ? (
-              forecastData.insights.recommendations.map(
-                (rec: any, i: number) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="p-6 border-orange-200 bg-orange-50/50">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle className="w-5 h-5 text-orange-600" />
+              <h3 className="text-xl font-bold text-foreground">Considerations</h3>
+            </div>
+            <div className="space-y-3">
+              {risks.length > 0 ? (
+                risks.map((risk: any, i: number) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-orange-100">
+                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2 flex-shrink-0" />
+                    <p className="text-sm text-foreground">{risk.message}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground">No significant risks detected.</p>
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-6 border-green-200 bg-green-50/50">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <h3 className="text-xl font-bold text-foreground">Recommendations</h3>
+            </div>
+            <div className="space-y-3">
+              {recommendations.length > 0 ? (
+                recommendations.map((rec: any, i: number) => (
                   <div key={i} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-100">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2 flex-shrink-0" />
                     <p className="text-sm text-foreground">{rec.message}</p>
                   </div>
-                )
-              )
-            ) : (
-              <p className="text-muted-foreground">
-                No recommendations at this time.
-              </p>
-            )}
-          </div>
-        </Card>
+                ))
+              ) : (
+                <p className="text-muted-foreground">No recommendations at this time.</p>
+              )}
+            </div>
+          </Card>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderDemoState = () => (
     <div className="space-y-6">
@@ -395,15 +426,15 @@ export default function FinancePage() {
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-foreground">Финансовый прогноз</h1>
-          {(pageState === "results" || pageState === "demo") && (
+          {(effectivePageState === "results" || pageState === "demo") && (
             <Button variant="outline" onClick={() => setPageState("initial")} className="text-foreground">
               Начать заново
             </Button>
           )}
         </div>
-        {pageState === "initial" && renderInitialState()}
-        {pageState === "mapping" && renderMappingState()}
-        {pageState === "results" && renderResultsState()}
+        {effectivePageState === "initial" && renderInitialState()}
+        {effectivePageState === "mapping" && renderMappingState()}
+        {effectivePageState === "results" && renderResultsState()}
         {pageState === "demo" && renderDemoState()}
       </div>
     </div>

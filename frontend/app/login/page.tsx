@@ -3,6 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import type { AxiosError } from "axios";
+
+import api from "@/lib/api";
+
+interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  user_id: number;
+  username: string;
+}
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -17,32 +27,37 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password }),
+      const { data } = await api.post<LoginResponse>("/auth/login", {
+        username,
+        password,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem("user_id", data.user_id.toString());
-        localStorage.setItem("username", data.username);
-        router.push("/dashboard");
-      } else {
-        const errorData = await response.json();
-        setError(
-          errorData.detail || "Login failed. Please check your credentials."
-        );
-      }
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user_id", data.user_id.toString());
+      localStorage.setItem("username", data.username);
+      router.push("/dashboard");
     } catch (err) {
-      setError("Network error. Please make sure the backend is running.");
+      const message = extractErrorMessage(err);
+      setError(message);
       console.error("Login error:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const extractErrorMessage = (err: unknown) => {
+    const fallback = "Login failed. Please check your credentials.";
+
+    const axiosError = err as AxiosError<{ detail?: string }>;
+    if (axiosError?.response?.data?.detail) {
+      return axiosError.response.data.detail;
+    }
+
+    if (axiosError?.message?.toLowerCase().includes("network")) {
+      return "Network error. Please make sure the backend is running.";
+    }
+
+    return fallback;
   };
 
   return (
